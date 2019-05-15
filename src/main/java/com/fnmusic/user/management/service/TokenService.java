@@ -23,7 +23,7 @@ public class TokenService {
     @Value("${app.token.audience}")
     private String audience;
 
-    public String generateUserAccessToken(User user){
+    public String generateUserSessionToken(User user){
 
         Map<String,Object> claims = new HashMap();
         claims.put("id",user.getId());
@@ -31,7 +31,6 @@ public class TokenService {
         claims.put("firstname",user.getFirstname());
         claims.put("lastname",user.getLastname());
         claims.put("email",user.getEmail());
-        claims.put("gender",user.getGender());
         claims.put("role",user.getRole());
         claims.put("accountverificationstatus",user.getAccountVerificationStatus());
 
@@ -46,6 +45,15 @@ public class TokenService {
                 .setExpiration(new Date(4))
                 .signWith(SignatureAlgorithm.HS256, secretKey.getBytes())
                 .compact();
+    }
+
+    public String generateUserAccessToken(){
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 5; i++) {
+            sb.append(UUID.randomUUID().toString());
+        }
+
+        return sb.toString();
     }
 
     public String generateLinkToken(int tokenLength) {

@@ -1,8 +1,10 @@
 package com.fnmusic.user.management.utils;
 
 
+import com.fnmusic.base.Utils.ConstantUtils;
+import com.fnmusic.base.Utils.MailType;
+import com.fnmusic.base.models.Mail;
 import com.fnmusic.user.management.model.AuditLog;
-import com.fnmusic.user.management.model.Mail;
 import com.fnmusic.user.management.model.PasswordReset;
 import com.fnmusic.user.management.model.User;
 import org.slf4j.Logger;
@@ -27,6 +29,8 @@ public class AppUtils {
 
         return false;
     }
+
+
 
     public static AuditLog getAuditLogInstance(AuditLogType auditLogType, Object object) {
 
@@ -92,14 +96,13 @@ public class AppUtils {
                 }
 
                 mail.setMailFrom(ConstantUtils.MAILSENDER);
-                mail.setMailTo(user.getEmail());
+                mail.setMailTo(new String[]{user.getEmail()});
                 mail.setMailCc(null);
                 mail.setMailBcc(null);
                 mail.setMailSubject("ACTIVATE YOUR ACCOUNT");
-                mail.setMailContent("Not implemented yet");
                 mail.setTemplateName(ConstantUtils.MAIL_TEMPLATE_NAMES[0]);
-                mail.setContentType(MediaType.TEXT_HTML);
-                mail.setBody("Dear " + user.getEmail() + ", kindly click on the link below to activate your account /n " + ConstantUtils.URL_PATHS[0] + pathToken );
+                mail.setBody("kindly click on the link below to activate your account");
+                mail.setActionLink(ConstantUtils.URL_PATHS[0] + pathToken);
                 return mail;
 
             case passwordReset:
@@ -109,14 +112,13 @@ public class AppUtils {
                 }
 
                 mail.setMailFrom(ConstantUtils.MAILSENDER);
-                mail.setMailTo(email);
+                mail.setMailTo(new String[]{email});
                 mail.setMailCc(null);
                 mail.setMailBcc(null);
-                mail.setMailSubject("ACTIVATE YOUR ACCOUNT");
-                mail.setMailContent("Not implemented yet");
+                mail.setMailSubject("PASSWORD RESET");
                 mail.setTemplateName(ConstantUtils.MAIL_TEMPLATE_NAMES[0]);
-                mail.setContentType(MediaType.TEXT_HTML);
-                mail.setBody("Dear " + email + ", kindly click on the link below to reset your password /n " + ConstantUtils.URL_PATHS[1] + email + "/" + pathToken );
+                mail.setBody("kindly click on the link below to reset your password");
+                mail.setActionLink(ConstantUtils.URL_PATHS[1] + email + "/" + pathToken);
                 return mail;
 
             default:

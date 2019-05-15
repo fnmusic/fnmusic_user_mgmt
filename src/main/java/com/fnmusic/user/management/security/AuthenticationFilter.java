@@ -3,7 +3,7 @@ package com.fnmusic.user.management.security;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fnmusic.user.management.model.response.ServiceResponse;
 import com.fnmusic.user.management.service.HashService;
-import jdk.internal.joptsimple.internal.Strings;
+import com.fnmusic.user.management.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -12,9 +12,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.MessageDigestPasswordEncoder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.web.filter.GenericFilterBean;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
@@ -27,7 +25,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Optional;
 
 public class AuthenticationFilter extends GenericFilterBean {
 
@@ -58,6 +55,7 @@ public class AuthenticationFilter extends GenericFilterBean {
             addSessionContextToLogging();
             chain.doFilter(request,response);
         } catch (MaxUploadSizeExceededException e) {
+            httpServletResponse.getWriter().println("Unable to authorize your request");
             httpServletResponse.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         } catch (InternalAuthenticationServiceException e) {
             SecurityContextHolder.clearContext();
@@ -73,7 +71,7 @@ public class AuthenticationFilter extends GenericFilterBean {
             httpServletResponse.getWriter().println(jsonResponse);
             httpServletResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         } catch (Exception e) {
-            httpServletResponse.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            httpServletResponse.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,"Authentication token not found");
         } finally {
             MDC.remove(TOKEN_SESSION_KEY);
             MDC.remove(USER_SESSION_KEY);
@@ -85,13 +83,13 @@ public class AuthenticationFilter extends GenericFilterBean {
 
         try {
             String tokenValue = null;
-            if (authentication != null && !Strings.isNullOrEmpty(authentication.getDetails().toString())) {
+            if (authentication != null && !Utils.isNullOrEmpty(authentication.getDetails().toString())) {
                 tokenValue = hashService.encode(authentication.getDetails().toString());
             }
             MDC.put(TOKEN_SESSION_KEY, tokenValue);
 
             String userValue = null;
-            if (authentication != null && !Strings.isNullOrEmpty(authentication.getPrincipal().toString())) {
+            if (authentication != null && !Utils.isNullOrEmpty(authentication.getPrincipal().toString())) {
                 userValue = hashService.encode(authentication.getDetails().toString());
             }
             MDC.put(USER_SESSION_KEY, userValue);

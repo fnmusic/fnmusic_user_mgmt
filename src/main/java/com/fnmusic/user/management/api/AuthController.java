@@ -1,5 +1,9 @@
 package com.fnmusic.user.management.api;
 
+import com.fnmusic.base.Utils.MailType;
+import com.fnmusic.base.models.Mail;
+import com.fnmusic.base.models.Result;
+import com.fnmusic.user.management.exception.InternalServerErrorException;
 import com.fnmusic.user.management.exception.NotFoundException;
 import com.fnmusic.user.management.model.*;
 import com.fnmusic.user.management.exception.BadRequestException;
@@ -12,8 +16,6 @@ import com.fnmusic.user.management.service.TokenService;
 import com.fnmusic.user.management.service.UserService;
 import com.fnmusic.user.management.utils.AppUtils;
 import com.fnmusic.user.management.utils.AuditLogType;
-import com.fnmusic.user.management.utils.ConstantUtils;
-import com.fnmusic.user.management.utils.MailType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +24,7 @@ import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.constraints.Email;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import java.security.NoSuchAlgorithmException;
@@ -64,11 +67,12 @@ public class AuthController {
 
         signup.setPassword(passwordHasher.encode(signup.getPassword()));
         signup.setDateCreated(new Date());
-        User user = authService.create(signup);
-        if (user == null)
+        Result<User> result = authService.create(signup);
+        if (result.getData() == null)
             throw new IllegalStateException("Unable to create user");
 
         String accountActivationToken = tokenService.generateLinkToken(20);
+        User user = result.getData();
         authService.submitAccountActivationToken(user.getEmail(),accountActivationToken);
 
         Mail mail = AppUtils.getMailInstance(MailType.accountActivation,user,accountActivationToken);
@@ -84,10 +88,37 @@ public class AuthController {
         auditLogPublisher.publishMessage(auditLog);
 
         SignupResponse response = new SignupResponse();
-        response.setAccessToken(tokenService.generateUserAccessToken(user));
+        response.setAccessToken(tokenService.generateUserSessionToken(user));
         response.setCode(String.valueOf(HttpStatus.CREATED.value()));
-        response.setDescription("Your account was successfully created");
+        response.setDescription("Dear "+signup.getUsername()+", kindly check your email to activate your account");
 
+        return response;
+    }
+
+    @PostMapping("/activate/{email}/{activationtoken}")
+    @ResponseStatus(HttpStatus.OK)
+    public ServiceResponse activateAccount(@PathVariable("email") @Validated @Email String email, @PathVariable("activationtoken") @Validated @NotEmpty String token) {
+
+        if (email.isEmpty()) {
+            throw new BadRequestException("Invalid Request");
+        }
+
+        if (token.isEmpty()) {
+            throw new BadRequestException("Invalid Request");
+        }
+
+        String userToken = authService.getAccountActivationToken(email);
+        if (token == null) {
+            throw new InternalServerErrorException("Something went wrong, try again later");
+        }
+
+        if (token != userToken) {
+            throw new InternalServerErrorException("Sorry, we couldn't activate your account, resend activation link");
+        }
+
+        ServiceResponse response = new ServiceResponse();
+        response.setCode("200");
+        response.setDescription("Your account was successfully activated");
         return response;
     }
 
@@ -116,21 +147,14 @@ public class AuthController {
         auditLogPublisher.publishMessage(auditLog);
 
         LoginResponse response = new LoginResponse();
-        response.setAccessToken(tokenService.generateUserAccessToken(user));
+        response.setAccessToken(tokenService.generateUserSessionToken(user));
         response.setCode("200");
         response.setDescription("You have successfully logged in");
 
         return response;
     }
 
-    @PostMapping("/activate/{email}")
-    @ResponseStatus(HttpStatus.OK)
-    public ServiceResponse activateAccount(String email) {
 
-        ServiceResponse response = new ServiceResponse();
-
-        return response;
-    }
 
     @PostMapping(value = "/forgotpassword/{email}", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.ACCEPTED)
@@ -178,6 +202,8 @@ public class AuthController {
         if (reset.getEmail().isEmpty()) {
             throw new BadRequestException("email cannot be empty");
         }
+
+        String resetToken = authService.retrievePasswordResetToken(reset.getEmail());
 
         reset.setPassword(passwordHasher.encode(reset.getPassword()));
         authService.resetPassword(reset);

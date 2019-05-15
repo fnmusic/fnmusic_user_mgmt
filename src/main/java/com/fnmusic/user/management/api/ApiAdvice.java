@@ -3,17 +3,20 @@ package com.fnmusic.user.management.api;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fnmusic.user.management.exception.BadRequestException;
+import com.fnmusic.user.management.exception.InternalServerErrorException;
 import com.fnmusic.user.management.model.Error;
 import com.fnmusic.user.management.model.response.ServiceResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletResponse;
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
 import java.util.ArrayList;
@@ -67,6 +70,17 @@ public class ApiAdvice {
     public ServiceResponse badRequestException(BadRequestException e) {
         ServiceResponse response = new ServiceResponse();
         response.setCode("400");
+        response.setDescription(e.getMessage());
+
+        return response;
+    }
+
+    @ExceptionHandler(InternalServerErrorException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ResponseBody
+    public ServiceResponse handleInternalServerErrorException(InternalServerErrorException e) {
+        ServiceResponse response = new ServiceResponse();
+        response.setCode("500");
         response.setDescription(e.getMessage());
 
         return response;

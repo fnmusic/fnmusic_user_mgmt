@@ -61,11 +61,13 @@ public class RedisCacheRepository implements ICacheRepository {
         } catch (Exception e) {
             logger.error(e.getMessage());
         }
+
+        return null;
     }
 
     @Override
     public boolean isPresent(Object cache, String key) {
-        return false;
+        return get(cache,key) != null;
     }
 
     @Override

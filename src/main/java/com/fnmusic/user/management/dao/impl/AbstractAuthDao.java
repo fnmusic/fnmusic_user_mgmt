@@ -1,5 +1,6 @@
 package com.fnmusic.user.management.dao.impl;
 
+import com.fnmusic.base.models.Result;
 import com.fnmusic.user.management.dao.IAuthDao;
 import com.fnmusic.user.management.model.Signup;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
@@ -27,33 +28,28 @@ public abstract class AbstractAuthDao<T extends Object> implements IAuthDao<T> {
 
     @Transactional
     @Override
-    public Long create(Signup model) {
+    public Result<T> createUser(Signup model) {
 
-        if (model == null)
+        if (model == null) {
             throw new IllegalArgumentException("Signup Object is null");
+        }
 
-        if (uspCreateUser == null)
+        if (uspCreateUser == null) {
             throw new IllegalStateException("usp_create has not been initialized by utilizing dao");
+        }
 
         SqlParameterSource in = new BeanPropertySqlParameterSource(model);
         Map<String,Object> m = uspCreateUser.execute(in);
-        int resultCode = -1;
-        if (m.containsKey(RETURN_VALUE)) {
-            resultCode = (Integer) m.get(RETURN_VALUE);
-        }
+        int resultCode = m.containsValue(RETURN_VALUE) ? (Integer) m.get(RETURN_VALUE) : 0;
+        Long id = m.containsKey(IDENTITY_VALUE) ? (Long) m.get(IDENTITY_VALUE) : 0;
 
-        Long id = null;
-
-        if (m.containsKey(IDENTITY_VALUE)) {
-            id = (Long) m.get(IDENTITY_VALUE);
-        }
-
-        return id;
+        Result result = new Result(resultCode,id);
+        return result;
     }
 
     @Transactional
     @Override
-    public void increaseAccessFailedCount(String email) {
+    public void increaseUserAccessFailedCount(String email) {
 
         if (uspIncreaseAccessFailedCount == null) {
             throw new IllegalStateException("uspIncreaseAccessFailedCount has not been initialized by utilizing dao");
@@ -62,4 +58,5 @@ public abstract class AbstractAuthDao<T extends Object> implements IAuthDao<T> {
         SqlParameterSource in = new MapSqlParameterSource("email",email);
         uspIncreaseAccessFailedCount.execute(in);
     }
+
 }

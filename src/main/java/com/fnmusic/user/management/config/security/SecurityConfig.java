@@ -31,15 +31,12 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http
-                .authorizeRequests()
-                .antMatchers("/rest/v1/fnmusic/usermgmt/auth/**")
+                .authorizeRequests().antMatchers("/","/rest/v1/fn/music/user/management/auth/**")
                 .permitAll()
-                .anyRequest().authenticated()
-                .and()
+                .anyRequest().authenticated().and()
                 .csrf().disable()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                .and()
-                .exceptionHandling().authenticationEntryPoint(unauthorizedEntryPoint());
+                .and().exceptionHandling().authenticationEntryPoint(unauthorizedEntryPoint());
 
         http
                 .cors()
@@ -59,12 +56,17 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Override
+    public void configure(WebSecurity web) throws Exception {
+        web.ignoring().antMatchers("/rest/v1/fn/music/user/management/auth/**");
+    }
+
+    @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
         auth.authenticationProvider(tokenAuthenticationProvider());
     }
 
     @Bean
-    private AuthenticationProvider tokenAuthenticationProvider(){ return new TokenAuthenticationProvider();}
+    public AuthenticationProvider tokenAuthenticationProvider(){ return new TokenAuthenticationProvider();}
 
 
 
