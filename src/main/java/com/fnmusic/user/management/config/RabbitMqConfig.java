@@ -1,4 +1,4 @@
-package com.fnmusic.user.management.config.messaging;
+package com.fnmusic.user.management.config;
 
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;

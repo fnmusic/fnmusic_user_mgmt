@@ -1,112 +1,63 @@
 package com.fnmusic.user.management.dao.impl;
 
+import com.fnmusic.base.dao.AbstractBaseDao;
+import com.fnmusic.base.models.Result;
+import com.fnmusic.base.models.User;
 import com.fnmusic.user.management.dao.IUserDao;
-import com.fnmusic.user.management.model.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.core.simple.SimpleJdbcCall;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Map;
-
 @Repository
-public class UserDaoImpl implements IUserDao<User> {
+public class UserDaoImpl extends AbstractBaseDao<User> implements IUserDao<User> {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    private SimpleJdbcCall uspRetrieveUserByEmail,
-            uspRetrieveUserByUsername,
-            uspRetrieveUserById;
-
-    protected final String IDENTITY_VALUE = "id";
-    protected final String RETURN_VALUE = "RETURN_VALUE";
-    protected final String NO_OF_RECORDS = "no_of_records";
-    protected final String DATA = "data";
-    protected final String LIST = "list";
-
-    @Autowired
-    private void init() {
-        uspRetrieveUserByEmail = new SimpleJdbcCall(jdbcTemplate)
-                .withSchemaName("dbo")
-                .withProcedureName("uspRetrieveUserByEmail")
-                .withReturnValue()
-                .returningResultSet(DATA, new BeanPropertyRowMapper<>(User.class));
-
-        uspRetrieveUserByUsername = new SimpleJdbcCall(jdbcTemplate)
-                .withSchemaName("dbo")
-                .withProcedureName("uspRetrieveUserByUsername")
-                .withReturnValue()
-                .returningResultSet(DATA, new BeanPropertyRowMapper<>(User.class));
-
-        uspRetrieveUserById = new SimpleJdbcCall(jdbcTemplate)
-                .withSchemaName("dbo")
-                .withProcedureName("uspRetrieveUserById")
-                .withReturnValue()
-                .returningResultSet(DATA,new BeanPropertyRowMapper<>(User.class));
+    @Override
+    public void init() {
+        pspCreate = new SimpleJdbcCall(jdbcTemplate).withSchemaName("dbo").withProcedureName("usp_create_user").withReturnValue();
+        pspRetrieveByUniqueId = new SimpleJdbcCall(jdbcTemplate).withSchemaName("dbo").withProcedureName("usp_RetrieveUser_By_Id").withReturnValue().returningResultSet(DATA , BeanPropertyRowMapper.newInstance(User.class));
+        pspRetrieveByUniqueKey = new SimpleJdbcCall(jdbcTemplate).withSchemaName("dbo").withProcedureName("usp_Retrieve_User_By_Email").withReturnValue().returningResultSet(DATA , BeanPropertyRowMapper.newInstance(User.class));
+        pspRetrieveBySecondUniqueKey = new SimpleJdbcCall(jdbcTemplate).withSchemaName("dbo").withProcedureName("usp_Retrieve_User_By_Username").withReturnValue().returningResultSet(DATA, BeanPropertyRowMapper.newInstance(User.class));
     }
 
     @Transactional
     @Override
-    public User retrieveUserByEmail(String email) {
-
-        if (email == null)
-            throw new IllegalArgumentException("email cannot be null");
-
-        if (uspRetrieveUserByEmail == null)
-            throw new IllegalStateException("uspRetrieve has not been initialized");
-
-        SqlParameterSource in = new MapSqlParameterSource("email",email);
-        Map<String, Object> m = uspRetrieveUserByEmail.execute(in);
-        List<User> list = null;
-        if (m.containsKey(DATA)) {
-            list = (List<User>) m.get(DATA);
-        }
-
-        if (list.isEmpty())
-            return null;
-
-        return list.get(0);
+    public Result<User> create(User object) {
+        return super.create(object);
     }
 
     @Transactional
     @Override
-    public User retrieveUserByUsername(String username) {
-
-        if (username == null)
-            throw new IllegalArgumentException(" username not be null");
-
-        if (uspRetrieveUserByUsername == null)
-            throw new IllegalStateException("uspRetrieve has not been initialized");
-
-        SqlParameterSource in = new MapSqlParameterSource("username",username);
-        Map<String, Object> m = uspRetrieveUserByUsername.execute(in);
-        List<User> list = null;
-        if (m.containsKey(DATA)) {
-            list = (List<User>) m.get(DATA);
-        }
-
-        if (list.isEmpty())
-            return null;
-
-        return list.get(0);
+    public Result<User> retrieveById(long id) {
+        return super.retrieveByUniqueId(id);
     }
 
     @Transactional
     @Override
-    public User retrieveUserById(Long id) {
-        if (id == 0)
-            throw new IllegalArgumentException("invalid user id");
+    public Result<User> retrieveByEmail(String email) {
+        return super.retrieveByUniqueKey(email);
+    }
 
-        if (uspRetrieveUserById == null) {
+    @Transactional
+    @Override
+    public Result<User> retrieveByUsername(String username) {
+        return super.retrieveBySecondUniqueKey(username);
+    }
 
-        }
+    @Transactional
+    @Override
+    public Result<User> update(User object) {
+        return super.update(object);
+    }
 
-        return null;
+    @Transactional
+    @Override
+    public Result<User> delete(String email) {
+        return super.deleteByUniqueKey(email);
     }
 }

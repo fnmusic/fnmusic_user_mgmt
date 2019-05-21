@@ -1,4 +1,4 @@
-package com.fnmusic.user.management.model;
+package com.fnmusic.user.management.models;
 
 import javax.validation.constraints.NotNull;
 

@@ -1,4 +1,4 @@
-package com.fnmusic.user.management.model;
+package com.fnmusic.user.management.models;
 
 import java.io.Serializable;
 import java.util.Date;

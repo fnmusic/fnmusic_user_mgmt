@@ -1,7 +1,7 @@
 package com.fnmusic.user.management.security;
 
 import com.fnmusic.user.management.exception.BadRequestException;
-import com.fnmusic.user.management.service.SessionTokenService;
+import com.fnmusic.user.management.service.TokenService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
@@ -11,7 +11,7 @@ import org.springframework.security.web.authentication.preauth.PreAuthenticatedA
 public class TokenAuthenticationProvider implements AuthenticationProvider {
 
     @Autowired
-    private SessionTokenService tokenService;
+    private TokenService tokenService;
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {

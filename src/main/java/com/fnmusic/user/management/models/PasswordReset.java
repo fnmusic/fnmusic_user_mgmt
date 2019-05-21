@@ -1,4 +1,4 @@
-package com.fnmusic.user.management.model;
+package com.fnmusic.user.management.models;
 
 public class PasswordReset {
 

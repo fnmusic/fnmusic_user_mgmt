@@ -1,14 +1,21 @@
 package com.fnmusic.user.management.dao;
 
 import com.fnmusic.base.models.Result;
-import com.fnmusic.user.management.model.Signup;
-import org.springframework.stereotype.Service;
 
-@Service
 public interface IAuthDao<T> {
 
-    public Result<T> createUser (Signup model);
+    public Result<T> increaseLoginAttempt(String email);
 
-    public void increaseUserAccessFailedCount(String email);
+    public Result<T> submitActivationToken(T model);
+//
+//    public Result<T> retrieveActivationToken(String email);
+//
+//    public Result<T> activateAccount(T model);
+//
+//    public Result<T> submitPasswordResetToken(T model);
+//
+//    public Result<T> retrievePasswordResetToken(String email);
+//
+//    public Result<T> resetPassword(T model);
 
 }

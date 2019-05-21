@@ -1,4 +1,4 @@
-package com.fnmusic.user.management.config.data;
+package com.fnmusic.user.management.config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

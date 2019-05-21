@@ -1,7 +1,7 @@
 package com.fnmusic.user.management.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fnmusic.user.management.model.response.ServiceResponse;
+import com.fnmusic.user.management.models.ServiceResponse;
 import com.fnmusic.user.management.service.HashService;
 import com.fnmusic.user.management.utils.Utils;
 import org.slf4j.Logger;
@@ -37,6 +37,10 @@ public class AuthenticationFilter extends GenericFilterBean {
 
     private static Logger logger = LoggerFactory.getLogger(AuthenticationFilter.class);
 
+    public AuthenticationFilter(AuthenticationManager authenticationManager) {
+        this.authenticationManager = authenticationManager;
+    }
+
     private HttpServletRequest httpServletRequest(ServletRequest request) {return (HttpServletRequest) request; }
     private HttpServletResponse httpServletResponse(ServletResponse response) { return (HttpServletResponse) response; }
 
@@ -46,10 +50,10 @@ public class AuthenticationFilter extends GenericFilterBean {
         HttpServletRequest httpServletRequest = httpServletRequest(request);
         HttpServletResponse httpServletResponse = httpServletResponse(response);
 
-        String token = httpServletRequest.getHeader("X-AUTH-TOKEN");
+        String token = httpServletRequest.getHeader("X-AUTH-TOKEN") != null ? httpServletRequest.getHeader("X-AUTH-TOKEN") : null;
         try {
 
-            if (token != null || !token.isEmpty()) {
+            if (token != null && !token.isEmpty()) {
                 processTokenAuthentication(token);
             }
             addSessionContextToLogging();
@@ -70,8 +74,6 @@ public class AuthenticationFilter extends GenericFilterBean {
             httpServletResponse.setHeader("Content-Type","application/json");
             httpServletResponse.getWriter().println(jsonResponse);
             httpServletResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        } catch (Exception e) {
-            httpServletResponse.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,"Authentication token not found");
         } finally {
             MDC.remove(TOKEN_SESSION_KEY);
             MDC.remove(USER_SESSION_KEY);
@@ -84,18 +86,18 @@ public class AuthenticationFilter extends GenericFilterBean {
         try {
             String tokenValue = null;
             if (authentication != null && !Utils.isNullOrEmpty(authentication.getDetails().toString())) {
-                tokenValue = hashService.encode(authentication.getDetails().toString());
+                tokenValue = authentication.getDetails().toString();
             }
             MDC.put(TOKEN_SESSION_KEY, tokenValue);
 
             String userValue = null;
             if (authentication != null && !Utils.isNullOrEmpty(authentication.getPrincipal().toString())) {
-                userValue = hashService.encode(authentication.getDetails().toString());
+                userValue = authentication.getPrincipal().toString();
             }
             MDC.put(USER_SESSION_KEY, userValue);
         }
-        catch (NoSuchAlgorithmException e) {
-            logger.error("No such algorithm error for adding session context to logging");
+        catch (Exception e) {
+            logger.error(e.getMessage());
 
         }
     }
@@ -103,6 +105,7 @@ public class AuthenticationFilter extends GenericFilterBean {
     private void processTokenAuthentication(String token) {
         PreAuthenticatedAuthenticationToken preAuthenticatedAuthenticationToken = new PreAuthenticatedAuthenticationToken(token,null);
         Authentication authentication = tryToAuthenticate(preAuthenticatedAuthenticationToken);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 
     private Authentication tryToAuthenticate(PreAuthenticatedAuthenticationToken preAuthenticatedAuthenticationToken) {

@@ -1,4 +1,4 @@
-package com.fnmusic.user.management.config.security;
+package com.fnmusic.user.management.config;
 
 import com.fnmusic.user.management.security.AuthenticationFilter;
 import com.fnmusic.user.management.security.TokenAuthenticationProvider;
@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -25,18 +26,19 @@ import java.util.Collections;
 
 @Configuration
 @EnableWebSecurity
+@EnableGlobalMethodSecurity(prePostEnabled = true)
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
-
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http
-                .authorizeRequests().antMatchers("/","/rest/v1/fn/music/user/management/auth/**")
-                .permitAll()
-                .anyRequest().authenticated().and()
+                .authorizeRequests()
+                .antMatchers("/","/rest/v1/fn/music/user/management/auth/**").permitAll().anyRequest().authenticated()
+                .and()
                 .csrf().disable()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                .and().exceptionHandling().authenticationEntryPoint(unauthorizedEntryPoint());
+                .and()
+                .exceptionHandling().authenticationEntryPoint(unauthorizedEntryPoint());
 
         http
                 .cors()
@@ -52,32 +54,19 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                     }
                 });
 
-        http.addFilterBefore(new AuthenticationFilter(), BasicAuthenticationFilter.class);
+        http.addFilterBefore(new AuthenticationFilter(authenticationManager()), BasicAuthenticationFilter.class);
     }
 
     @Override
-    public void configure(WebSecurity web) throws Exception {
-        web.ignoring().antMatchers("/rest/v1/fn/music/user/management/auth/**");
-    }
-
-    @Override
-    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+    protected void configure(AuthenticationManagerBuilder auth) {
         auth.authenticationProvider(tokenAuthenticationProvider());
     }
 
     @Bean
     public AuthenticationProvider tokenAuthenticationProvider(){ return new TokenAuthenticationProvider();}
 
-
-
     @Bean
     public AuthenticationEntryPoint unauthorizedEntryPoint() {
-        return new AuthenticationEntryPoint() {
-            @Override
-            public void commence(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse,
-                                 AuthenticationException e) throws IOException, ServletException {
-                httpServletResponse.sendError(httpServletResponse.SC_UNAUTHORIZED);
-            }
-        };
+        return (httpServletRequest, httpServletResponse, e) -> httpServletResponse.sendError(httpServletResponse.SC_UNAUTHORIZED);
     }
 }

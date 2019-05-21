@@ -1,4 +1,4 @@
-package com.fnmusic.user.management.model.messaging;
+package com.fnmusic.user.management.models;
 
 import java.util.Date;
 

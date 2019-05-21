@@ -4,12 +4,11 @@ package com.fnmusic.user.management.utils;
 import com.fnmusic.base.Utils.ConstantUtils;
 import com.fnmusic.base.Utils.MailType;
 import com.fnmusic.base.models.Mail;
-import com.fnmusic.user.management.model.AuditLog;
-import com.fnmusic.user.management.model.PasswordReset;
-import com.fnmusic.user.management.model.User;
+import com.fnmusic.base.models.User;
+import com.fnmusic.user.management.models.AuditLog;
+import com.fnmusic.user.management.models.PasswordReset;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.MediaType;
 
 import java.util.Date;
 import java.util.UUID;
@@ -87,6 +86,7 @@ public class AppUtils {
 
     public static Mail getMailInstance(MailType mailType, Object object, String pathToken) {
         Mail mail = new Mail();
+        mail.setSentDate(new Date());
 
         switch (mailType) {
             case accountActivation:
