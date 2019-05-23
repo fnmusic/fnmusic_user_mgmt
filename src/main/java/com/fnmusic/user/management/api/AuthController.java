@@ -3,15 +3,14 @@ package com.fnmusic.user.management.api;
 import com.fnmusic.base.Utils.MailType;
 import com.fnmusic.base.models.Mail;
 import com.fnmusic.base.models.Result;
+import com.fnmusic.base.models.Role;
 import com.fnmusic.base.models.User;
-import com.fnmusic.base.models.UserPrincipal;
 import com.fnmusic.base.security.AccessTokenWithUserDetails;
-import com.fnmusic.base.security.AuthenticationWithToken;
-import com.fnmusic.user.management.exception.InternalServerErrorException;
-import com.fnmusic.user.management.models.*;
 import com.fnmusic.user.management.exception.BadRequestException;
+import com.fnmusic.user.management.exception.InternalServerErrorException;
 import com.fnmusic.user.management.messaging.Publisher.impl.AuditLogPublisher;
 import com.fnmusic.user.management.messaging.Publisher.impl.MailPublisher;
+import com.fnmusic.user.management.models.*;
 import com.fnmusic.user.management.service.AuthService;
 import com.fnmusic.user.management.service.HashService;
 import com.fnmusic.user.management.service.TokenService;
@@ -23,11 +22,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.persistence.Access;
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 
@@ -78,7 +75,7 @@ public class AuthController {
         newUser.setGender(signup.getGender());
         newUser.setEmail(signup.getEmail());
         newUser.setPasswordHash(passwordHasher.encode(signup.getPassword()));
-        newUser.setRole("user");
+        newUser.setRole(Role.USER);
         newUser.setDateCreated(new Date());
         Result<User> result = userService.createUser(newUser);
         if (result.getData() == null)

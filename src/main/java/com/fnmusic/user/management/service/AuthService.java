@@ -1,9 +1,7 @@
 package com.fnmusic.user.management.service;
 
 import com.fnmusic.base.models.Result;
-import com.fnmusic.base.models.User;
 import com.fnmusic.user.management.dao.impl.AuthDaoImpl;
-import com.fnmusic.user.management.exception.InternalServerErrorException;
 import com.fnmusic.user.management.models.UserAuth;
 import com.fnmusic.user.management.redis.RedisCacheRepository;
 import com.fnmusic.user.management.utils.Utils;

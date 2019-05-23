@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fnmusic.user.management.exception.BadRequestException;
 import com.fnmusic.user.management.exception.InternalServerErrorException;
+import com.fnmusic.user.management.exception.NotFoundException;
 import com.fnmusic.user.management.models.Error;
 import com.fnmusic.user.management.models.ServiceResponse;
 import org.slf4j.Logger;
@@ -25,27 +26,27 @@ public class ApiAdvice {
 
     private static Logger logger = LoggerFactory.getLogger(ApiAdvice.class);
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    @ResponseBody
-    public ServiceResponse handleIllegalArgumentException(IllegalArgumentException e) {
-        ServiceResponse response = new ServiceResponse();
-        response.setCode("500");
-        response.setDescription(e.getMessage());
-
-        return response;
-    }
-
-    @ExceptionHandler(IllegalStateException.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    @ResponseBody
-    public ServiceResponse handleIllegalStateException(IllegalStateException e) {
-        ServiceResponse response = new ServiceResponse();
-        response.setCode("500");
-        response.setDescription(e.getMessage());
-
-        return response;
-    }
+//    @ExceptionHandler(IllegalArgumentException.class)
+//    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+//    @ResponseBody
+//    public ServiceResponse handleIllegalArgumentException(IllegalArgumentException e) {
+//        ServiceResponse response = new ServiceResponse();
+//        response.setCode("500");
+//        response.setDescription(e.getMessage());
+//
+//        return response;
+//    }
+//
+//    @ExceptionHandler(IllegalStateException.class)
+//    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+//    @ResponseBody
+//    public ServiceResponse handleIllegalStateException(IllegalStateException e) {
+//        ServiceResponse response = new ServiceResponse();
+//        response.setCode("500");
+//        response.setDescription(e.getMessage());
+//
+//        return response;
+//    }
 
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -139,6 +140,17 @@ public class ApiAdvice {
             response.setDescription(message);
 
         }
+        return response;
+    }
+
+    @ExceptionHandler(NotFoundException.class)
+    @ResponseStatus(value = HttpStatus.NOT_FOUND)
+    @ResponseBody
+    public ServiceResponse handleNotFoundException(NotFoundException e) {
+        ServiceResponse response = new ServiceResponse();
+        response.setCode("404");
+        response.setDescription(e.getMessage());
+
         return response;
     }
 
