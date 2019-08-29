@@ -1,29 +1,44 @@
 package com.fnmusic.user.management.models;
 
-import org.springframework.lang.Nullable;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
+import javax.annotation.PostConstruct;
+import javax.validation.constraints.Email;
+import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import java.util.Date;
 
-
-/**
- * Created by Stephen.Enunwah
- */
-
-public class Signup extends Login {
+public class Signup {
 
     @NotNull
+    @NotEmpty
+    @JsonProperty("Username")
     private String username;
-    @NotNull
+
+    @JsonProperty("FirstName")
     private String firstname;
-    @NotNull
+
+    @JsonProperty("LastName")
     private String lastname;
+
     @NotNull
-    private Date dateOfBirth;
+    @NotEmpty
+    @Email
+    @JsonProperty("Email")
+    private String email;
+
     @NotNull
-    private String gender;
-    @Nullable
+    @NotEmpty
+    @JsonProperty("Password")
+    private String password;
+
+    @JsonProperty("DateCreated")
     private Date dateCreated;
+
+    @PostConstruct
+    public void init() {
+        this.dateCreated = new Date();
+    }
 
     public String getUsername() {
         return username;
@@ -49,28 +64,27 @@ public class Signup extends Login {
         this.lastname = lastname;
     }
 
-    public Date getDateOfBirth() {
-        return dateOfBirth;
+    public String getEmail() {
+        return email;
     }
 
-    public void setDateOfBirth(Date dateOfBirth) {
-        this.dateOfBirth = dateOfBirth;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
-    public String getGender() {
-        return gender;
+    public String getPassword() {
+        return password;
     }
 
-    public void setGender(String gender) {
-        this.gender = gender;
+    public void setPassword(String password) {
+        this.password = password;
     }
 
-    @Nullable
     public Date getDateCreated() {
         return dateCreated;
     }
 
-    public void setDateCreated(@Nullable Date dateCreated) {
+    public void setDateCreated(Date dateCreated) {
         this.dateCreated = dateCreated;
     }
 }

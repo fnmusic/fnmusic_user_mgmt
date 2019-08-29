@@ -1,6 +1,6 @@
 package com.fnmusic.user.management.security;
 
-import com.fnmusic.user.management.utils.Utils;
+import com.fnmusic.user.management.utils.AppUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -40,14 +40,16 @@ public class AuthenticationFilter extends GenericFilterBean {
         HttpServletResponse httpServletResponse = httpServletResponse(response);
 
         try {
-            String token = httpServletRequest.getHeader("X-AUTH-TOKEN") != null ? httpServletRequest.getHeader("X-AUTH-TOKEN") : null;
-            if (token == null || token.isEmpty()) {
-                throw new AuthenticationException();
+            String token = httpServletRequest.getHeader("X-AUTH-TOKEN");
+            if (token != null) {
+                processTokenAuthentication(token);
+                addSessionContextToLogging();
             }
 
-            processTokenAuthentication(token);
-            addSessionContextToLogging();
-            chain.doFilter(httpServletRequest,httpServletResponse);
+            if (SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) {
+                chain.doFilter(httpServletRequest, httpServletResponse);
+            }
+
         } catch (MaxUploadSizeExceededException e) {
             logger.error(e.getMessage());
             httpServletResponse.sendError(HttpServletResponse.SC_BAD_REQUEST,"Unable to Authorize Request");
@@ -84,13 +86,13 @@ public class AuthenticationFilter extends GenericFilterBean {
 
         try {
             String tokenValue = null;
-            if (authentication != null && !Utils.isNullOrEmpty(authentication.getDetails().toString())) {
+            if (authentication != null && !AppUtils.isNullOrEmpty(authentication.getDetails().toString())) {
                 tokenValue = authentication.getDetails().toString();
             }
             MDC.put(TOKEN_SESSION_KEY, tokenValue);
 
             String userValue = null;
-            if (authentication != null && !Utils.isNullOrEmpty(authentication.getPrincipal().toString())) {
+            if (authentication != null && !AppUtils.isNullOrEmpty(authentication.getPrincipal().toString())) {
                 userValue = authentication.getPrincipal().toString();
             }
             MDC.put(USER_SESSION_KEY, userValue);

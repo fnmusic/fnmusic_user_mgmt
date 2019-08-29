@@ -1,8 +1,8 @@
 package com.fnmusic.user.management.security;
 
-import com.fnmusic.user.management.exception.BadRequestException;
-import com.fnmusic.user.management.service.TokenService;
+import com.fnmusic.user.management.services.TokenService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -17,11 +17,11 @@ public class TokenAuthenticationProvider implements AuthenticationProvider {
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
         String token = authentication.getPrincipal().toString();
         if (token == null || token.isEmpty()) {
-            throw new BadRequestException("Invalid Token");
+            throw new AccessDeniedException("Invalid Token");
         }
 
         if (!tokenService.contains(token)) {
-            throw new BadRequestException("Invalid or Expired Token");
+            throw new AccessDeniedException("Invalid or Expired Token");
         }
 
         return tokenService.retrieve(token);
