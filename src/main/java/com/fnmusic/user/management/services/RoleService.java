@@ -1,9 +1,5 @@
 package com.fnmusic.user.management.services;
 
-import com.fnmusic.base.models.Feature;
-import com.fnmusic.base.models.Permission;
-import com.fnmusic.base.models.Result;
-import com.fnmusic.base.models.Role;
 import com.fnmusic.base.utils.ConstantUtils;
 import com.fnmusic.user.management.dao.impl.RoleDao;
 import com.fnmusic.user.management.repository.CacheRepository;

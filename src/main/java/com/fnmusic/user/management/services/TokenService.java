@@ -11,8 +11,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import java.util.Random;
-import java.util.UUID;
 
 @Service
 public class TokenService {
@@ -21,7 +19,7 @@ public class TokenService {
     private ObjectMapper om;
     @Autowired
     private CacheRepository cacheRepository;
-    @Value("${app.services.token.redisTtl}")
+    @Value("${app.redisTtl}")
     private long redisTtl;
 
     private Object tokenCache;
@@ -29,33 +27,8 @@ public class TokenService {
 
     @PostConstruct
     public void init() {
-        this.tokenCache = cacheRepository.createCache(ConstantUtils.APPNAME,"tokenCache",redisTtl);
-
+        this.tokenCache = cacheRepository.createCache(ConstantUtils.APPNAME,"tokenCache",6L);
     }
-
-    public String generateUserAccessToken(){
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < 5; i++) {
-            sb.append(UUID.randomUUID().toString());
-        }
-
-        return sb.toString();
-    }
-
-    public String generateToken(int tokenLength) {
-        final String CONSTVALUES = "abcdefghijklmnopqrstuvwxyz1234567890";
-        char[] charArray = CONSTVALUES.toCharArray();
-
-        String token = "";
-        Random rnd = new Random();
-        for (int i = 0; i < tokenLength; i++) {
-            int index = rnd.nextInt(charArray.length - 1);
-            token += charArray[index];
-        }
-
-        return token;
-    }
-
 
     public void store(String token, Object data) {
         cacheRepository.put(tokenCache, token, data);

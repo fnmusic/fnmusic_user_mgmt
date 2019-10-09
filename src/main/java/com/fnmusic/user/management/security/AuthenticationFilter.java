@@ -43,12 +43,10 @@ public class AuthenticationFilter extends GenericFilterBean {
             String token = httpServletRequest.getHeader("X-AUTH-TOKEN");
             if (token != null) {
                 processTokenAuthentication(token);
-                addSessionContextToLogging();
             }
 
-            if (SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) {
-                chain.doFilter(httpServletRequest, httpServletResponse);
-            }
+            addSessionContextToLogging();
+            chain.doFilter(httpServletRequest, httpServletResponse);
 
         } catch (MaxUploadSizeExceededException e) {
             logger.error(e.getMessage());

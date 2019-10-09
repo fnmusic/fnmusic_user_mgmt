@@ -3,7 +3,9 @@ package com.fnmusic.user.management.services;
 import com.fnmusic.base.models.*;
 import com.fnmusic.base.security.AccessTokenWithUserDetails;
 import com.fnmusic.base.security.AuthenticationWithToken;
+import com.fnmusic.base.utils.CharacterType;
 import com.fnmusic.base.utils.ConstantUtils;
+import com.fnmusic.base.utils.RandomGeneratorUtils;
 import com.fnmusic.base.utils.SystemUtils;
 import com.fnmusic.user.management.dao.impl.UserDao;
 import com.fnmusic.user.management.repository.CacheRepository;
@@ -11,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -35,7 +38,7 @@ public class UserService {
     private FeatureService featureService;
     @Autowired
     private HashService hashService;
-    @Value("${app.services.user.redisTtl}")
+    @Value("${app.redisTtl}")
     private long redisTtl;
 
     private static Object userCache;
@@ -48,20 +51,21 @@ public class UserService {
         clearFromRedisCache();
     }
 
-    private void createSuperAdmin() {
+    void createSuperAdmin() {
 
         try {
-            User superAdmin = new User();
-            superAdmin.setEmail("superadmin@fnmusic.com");
-            superAdmin.setUsername("superadmin");
-            superAdmin.setFirstName("Super");
-            superAdmin.setLastName("Admin");
-            superAdmin.setPasswordHash(hashService.encode("password123"));
-            superAdmin.setRole(Role.SUPER_ADMIN);
-            superAdmin.setDateCreated(new Date());
-
-            create(superAdmin);
-
+            Result<User> byUsername = retrieveUserByUsername("superadmin");
+            if (byUsername.getData() == null) {
+                User superAdmin = new User();
+                superAdmin.setEmail("superadmin@fnmusic.com");
+                superAdmin.setUsername("superadmin");
+                superAdmin.setFirstName("Super");
+                superAdmin.setLastName("Admin");
+                superAdmin.setPasswordHash(hashService.encode("password123"));
+                superAdmin.setRole(Role.SUPER_ADMIN);
+                superAdmin.setDateCreated(new Date());
+                create(superAdmin);
+            }
         } catch (NoSuchAlgorithmException e) {
             logger.error(e.getMessage());
         }
@@ -87,14 +91,13 @@ public class UserService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 
-
     public AccessTokenWithUserDetails login(User user) {
 
         try {
             Result<Feature> featureResult = featureService.retrieveByRole(user.getRole());
             Feature feature = featureResult.getData();
 
-            String accessToken = tokenService.generateUserAccessToken();
+            String accessToken = RandomGeneratorUtils.generateCode(CharacterType.ALPHABETIC,120).toLowerCase();
             UserPrincipal userPrincipal = new UserPrincipal(user,feature.getPermissions());
             setAuthentication(accessToken,userPrincipal);
 
@@ -116,7 +119,7 @@ public class UserService {
 
         try {
             Calendar calendar = Calendar.getInstance();
-            calendar.set(calendar.get(Calendar.YEAR),calendar.get(Calendar.MONTH),calendar.get(Calendar.DATE),calendar.get(Calendar.HOUR_OF_DAY),calendar.get(Calendar.MINUTE) + 15);
+            calendar.set(calendar.get(Calendar.YEAR),calendar.get(Calendar.MONTH),calendar.get(Calendar.DATE),calendar.get(Calendar.HOUR_OF_DAY),calendar.get(Calendar.MINUTE) + 2);
             return userDao.increaseLoginAttempt(email,calendar.getTime());
         } catch (Exception e) {
             logger.error(e.getMessage());
@@ -296,7 +299,6 @@ public class UserService {
 
     @SuppressWarnings("unchecked")
     public Result<User> isFollowing(long userId, long fanId) {
-
         try {
             String key = "user_isFollowing_userId_"+userId+"_fanId_"+fanId+"";
             Result<User> data = (Result<User>) cacheRepository.get(userCache,key);
@@ -306,7 +308,6 @@ public class UserService {
                     cacheRepository.put(userCache,key,data);
                 }
             }
-
             return data;
         } catch (Exception ex) {
             logger.error(ex.getMessage());
@@ -315,69 +316,90 @@ public class UserService {
         return null;
     }
 
-    public void updateUsername(String email, String username) {
+    public void updateUsername(long id, String username) {
         try {
-            userDao.updateUsername(email,username);
+            userDao.updateUsername(id,username);
+            updateAuthentication();
             clearFromRedisCache();
         } catch (Exception ex) {
             logger.error(ex.getMessage());
         }
     }
 
-    public void updatePhone(String email, String phone) {
-
+    public void updatePhone(long id, String phone) {
         try {
-            userDao.updatePhone(email,phone);
+            userDao.updatePhone(id,phone);
+            updateAuthentication();
             clearFromRedisCache();
         } catch (Exception ex) {
             logger.error(ex.getMessage());
+        }
+    }
+
+    public void updatePhoneConfirmed(long id, boolean status) {
+        try {
+            userDao.updatePhoneConfirmed(id,status);
+            updateAuthentication();
+            clearFromRedisCache();
+        } catch (Exception e) {
+            logger.error(e.getMessage());
         }
     }
 
     public void updateEmail(long id, String email) {
-
         try {
             userDao.updateEmail(id,email);
+            updateAuthentication();
             clearFromRedisCache();
         } catch (Exception ex) {
             logger.error(ex.getMessage());
         }
     }
 
-    public void updateNationality(String email, String country) {
-
+    public void updateEmailConfirmed(long id, boolean status) {
         try {
-            userDao.updateNationality(email,country);
+            userDao.updateEmailConfirmed(id,status);
+            updateAuthentication();
             clearFromRedisCache();
         } catch (Exception e) {
             logger.error(e.getMessage());
         }
     }
 
-    public void updateTwoFactor(String email, boolean status) {
-
+    public void updateNationality(long id, String country) {
         try {
-            userDao.updateTwoFactor(email,status);
+            userDao.updateNationality(id,country);
+            updateAuthentication();
             clearFromRedisCache();
         } catch (Exception e) {
             logger.error(e.getMessage());
         }
     }
 
-    public void updatePasswordResetProtection(String email, boolean status) {
-
+    public void updateTwoFactor(long id, boolean status) {
         try {
-            userDao.updatePasswordResetProtection(email,status);
+            userDao.updateTwoFactor(id,status);
+            updateAuthentication();
             clearFromRedisCache();
         } catch (Exception e) {
             logger.error(e.getMessage());
         }
     }
 
-    public void updateActivationStatus(String email, boolean status) {
-
+    public void updatePasswordResetProtection(long id, boolean status) {
         try {
-            userDao.updateActivationStatus(email,status);
+            userDao.updatePasswordResetProtection(id,status);
+            updateAuthentication();
+            clearFromRedisCache();
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+    }
+
+    public void updateActivationStatus(long id, boolean status, Date dateDeleted) {
+        try {
+            userDao.updateActivationStatus(id,status,dateDeleted);
+            updateAuthentication();
             clearFromRedisCache();
         } catch (Exception e) {
             logger.error(e.getMessage());
@@ -388,6 +410,7 @@ public class UserService {
 
         try {
             userDao.update(user);
+            updateAuthentication();
             clearFromRedisCache();
         } catch (Exception ex) {
             logger.error(ex.getMessage());
@@ -414,29 +437,28 @@ public class UserService {
         return null;
     }
 
-    public Result<User> updatePassword(String email, String password) {
+    public void updatePassword(long id, String password) {
         try {
-            userDao.updatePassword(email,password);
-            Result<User> result = userDao.retrieveByEmail(email);
-            UserPrincipal userPrincipal = new UserPrincipal(result.getData());
-            String accessToken = SystemUtils.getAccessToken();
-            tokenService.remove(accessToken);
-            setAuthentication(accessToken,userPrincipal);
-
-            return result;
+            userDao.updatePassword(id,password);
+            updateAuthentication();
+            clearFromRedisCache();
         } catch (Exception ex) {
             logger.error(ex.getMessage());
-        } finally {
-            clearFromRedisCache();
         }
-
-        return null;
     }
 
-    private void delete(String email) {
+    private void updateAuthentication() {
+        Result<User> result = userDao.retrieveById(SystemUtils.getCurrentUser().getId());
+        UserPrincipal userPrincipal = new UserPrincipal(result.getData());
+        String accessToken = SystemUtils.getAccessToken();
+        tokenService.remove(accessToken);
+        setAuthentication(accessToken,userPrincipal);
+    }
+
+    private void delete(long id) {
 
         try {
-            userDao.delete(email);
+            userDao.delete(id);
             clearFromRedisCache();
         } catch (Exception ex) {
             logger.error(ex.getMessage());
@@ -537,5 +559,34 @@ public class UserService {
         this.cacheRepository.clear(userCache,key);
     }
 
+    boolean isAfterCurrentTime(Date date) {
+        Date currentTime = new Date();
+        if (!currentTime.after(date)) {
+            return false;
+        }
 
+        return true;
+    }
+
+    @Scheduled(fixedRate = 3600000)
+    void serviceCheck() {
+        int pageSize = 100;
+
+        //locked accounts
+        for (int pageNumber = 1; pageNumber < 100; pageNumber++) {
+            Result<User> result = userDao.retrieveAllLockedUsers(pageNumber,pageSize);
+            if (!result.getList().isEmpty()) {
+                List<User> list = result.getList();
+                if (!list.isEmpty()) {
+                    for (User user : list) {
+                        //checked for lock out end date expiry data
+                        if (isAfterCurrentTime(user.getLockOutEndDateUtc())) {
+                            unlockUserById(user.getId());
+                        }
+                    }
+                }
+            }
+        }
+
+    }
 }

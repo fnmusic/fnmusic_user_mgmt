@@ -29,10 +29,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
         http
                 .authorizeRequests()
-                .antMatchers("/rest/v1/fn/music/user/management/user/**")
-                .permitAll()
-                .anyRequest()
-                .authenticated()
+                .antMatchers("/rest/v1/fn/music/user/management/user/**",
+                        "/rest/v1/fn/music/user/management/settings/account/**")
+                .permitAll().anyRequest().authenticated()
                 .and()
                 .addFilterBefore(new AuthenticationFilter(authenticationManager()),BasicAuthenticationFilter.class);
 
@@ -60,9 +59,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     public void configure(WebSecurity web) {
         web
                 .ignoring()
-                .antMatchers("/rest/v1/fn/music/user/management/auth/**",
-                        "/rest/v1/fn/music/user/management/user/findbyemail/**",
-                        "/rest/v1/fn/music/user/management/user/findbyusername/**");
+                .antMatchers("/rest/v1/fn/music/user/management/auth/**");
     }
 
     @Override
@@ -71,7 +68,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
-    public AuthenticationProvider tokenAuthenticationProvider(){ return new TokenAuthenticationProvider();}
+    public AuthenticationProvider tokenAuthenticationProvider() { return new TokenAuthenticationProvider();}
 
     @Bean
     public AuthenticationEntryPoint unauthorizedEntryPoint() {

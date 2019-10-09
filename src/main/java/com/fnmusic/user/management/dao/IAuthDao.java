@@ -41,5 +41,28 @@ public interface IAuthDao<T> {
 
     Result<T> resetPassword(T auth);
 
+    Result<T> submitPhoneVerificationToken(Auth auth);
+
+    Result<T> retrievePhoneVerificationToken(String phone);
+
+    Result<T> retrieveAllPhoneVerificationTokens(int pageNumber, int pageSize);
+
+    Result<T> deletePhoneVerificationToken(String phone);
+
+    Result<T> submitEmailVerificationToken(Auth auth);
+
+    Result<T> retrieveEmailVerificationToken(String email);
+
+    Result<T> retrieveAllEmailVerificationTokens(int pageNumber, int pageSize);
+
+    Result<T> deleteEmailVerificationToken(String email);
+
+    Result<T> submitTwoFactorVerificationToken(Auth auth);
+
+    Result<T> retrieveTwoFactorVerificationToken(String phone);
+
+    Result<T> retrieveAllTwoFactorVerificationTokens(int pageNumber, int pageSize);
+
+    Result<T> deleteTwoFactorVerificationToken(String phone);
 
 }

@@ -1,3 +1,4 @@
 Manifest-Version: 1.0
-Main-Class: com.fnmusic.user.management.UserManagementApplication
+Main-Class: com.fnmusic.user.management.FNMusicUserManagementApplicati
+ on
 

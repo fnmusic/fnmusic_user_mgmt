@@ -1,7 +1,6 @@
 package com.fnmusic.user.management.dao;
 
 import com.fnmusic.base.models.Result;
-import com.fnmusic.base.models.Role;
 
 public interface IFeatureDao<T> {
 

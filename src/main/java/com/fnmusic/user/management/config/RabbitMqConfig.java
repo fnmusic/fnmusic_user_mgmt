@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-
 /**
  * Created by Stephen.Enunwah on 4/6/2019
  */
@@ -18,20 +17,24 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
 
-    @Value("${app.rabbitmq.exchange}")
+    @Value("${app.rabbitMq.exchange}")
     private String exchange;
-    @Value("${app.rabbitmq.auditroutingkey}")
+    @Value("${app.rabbitMq.auditRoutingKey}")
     private String auditRoutingKey;
-    @Value("${app.rabbitmq.auditqueue}")
+    @Value("${app.rabbitMq.auditQueue}")
     private String auditQueue;
-    @Value("${app.rabbitmq.mailroutingkey}")
+    @Value("${app.rabbitMq.mailRoutingKey}")
     private String mailRoutingKey;
-    @Value("${app.rabbitmq.mailqueue}")
+    @Value("${app.rabbitMq.mailQueue}")
     private String mailQueue;
-    @Value("${app.rabbitmq.notificationroutingkey}")
+    @Value("${app.rabbitMq.notificationRoutingKey}")
     private String notificationRoutingKey;
-    @Value("${app.rabbitmq.notificationqueue}")
+    @Value("${app.rabbitMq.notificationQueue}")
     private String notificationQueue;
+    @Value("${app.rabbitMq.smsRoutingKey}")
+    private String smsRoutingKey;
+    @Value("${app.rabbitMq.smsQueue}")
+    private String smsQueue;
 
     @Bean
     public TopicExchange exchange(){
@@ -54,18 +57,38 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue smsQueue() {return new Queue(smsQueue, true); }
+
+    @Bean
     public Binding auditbinding(Queue auditQueue, TopicExchange exchange){
-        return BindingBuilder.bind(auditQueue).to(exchange).with(auditRoutingKey);
+        return BindingBuilder
+                .bind(auditQueue)
+                .to(exchange)
+                .with(auditRoutingKey);
     }
 
     @Bean
     public Binding mailBinding(Queue mailQueue, TopicExchange exchange) {
-        return BindingBuilder.bind(mailQueue).to(exchange()).with(mailRoutingKey);
+        return BindingBuilder
+                .bind(mailQueue)
+                .to(exchange())
+                .with(mailRoutingKey);
     }
 
     @Bean
     public Binding notificationBinding(Queue notificationQueue, TopicExchange exchange) {
-        return BindingBuilder.bind(notificationQueue).to(exchange).with(notificationRoutingKey);
+        return BindingBuilder
+                .bind(notificationQueue)
+                .to(exchange)
+                .with(notificationRoutingKey);
+    }
+
+    @Bean
+    public Binding smsBinding(Queue smsQueue, TopicExchange exchange) {
+        return BindingBuilder
+                .bind(smsQueue)
+                .to(exchange)
+                .with(smsRoutingKey);
     }
 
     @Bean(name = "mailTemplate")
@@ -94,6 +117,15 @@ public class RabbitMQConfig {
 
         return rabbitTemplate;
 
+    }
+
+    @Bean(name = "smsTemplate")
+    public RabbitTemplate smsTemplate(ConnectionFactory connectionFactory) {
+        RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
+        rabbitTemplate.setExchange(exchange);
+        rabbitTemplate.setRoutingKey(smsRoutingKey);
+
+        return rabbitTemplate;
     }
 
 }

@@ -10,10 +10,10 @@ import org.springframework.stereotype.Component;
 public class AuditLogPublisher extends AbstractPublisher<AuditLog> {
 
     @Autowired
-    private RabbitTemplate auditTemplate;
+    RabbitTemplate auditTemplate;
 
     @Override
     public void init() {
-        this.abstractRabbitTemplate = auditTemplate;
+        rabbitTemplate = auditTemplate;
     }
 }

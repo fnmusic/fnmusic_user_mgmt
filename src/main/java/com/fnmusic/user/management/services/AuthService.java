@@ -22,10 +22,12 @@ import java.util.List;
 public class AuthService {
 
     @Autowired
+    private UserService userService;
+    @Autowired
     private AuthDao authDao;
     @Autowired
     private CacheRepository cacheRepository;
-    @Value("${app.services.auth.redisTtl}")
+    @Value("${app.redisTtl}")
     private long redisTtl;
 
     private static Object authCache;
@@ -33,7 +35,7 @@ public class AuthService {
 
     @PostConstruct
     public void init() {
-        authCache = cacheRepository.createCache(ConstantUtils.APPNAME,"authCache",1L);
+        authCache = cacheRepository.createCache(ConstantUtils.APPNAME,"authCache",redisTtl);
         clearFromRedisCache();
     }
 
@@ -68,7 +70,7 @@ public class AuthService {
     }
 
     @SuppressWarnings("unchecked")
-    public Result<Auth> retrieveAllLoginVerificationTokens(int pageNumber, int pageSize) {
+    private Result<Auth> retrieveAllLoginVerificationTokens(int pageNumber, int pageSize) {
 
         try {
             String key = "auth_retrieveAllLoginVerificationTokens_pageNumber_"+pageNumber+"_pageSize_"+pageSize+"";
@@ -168,8 +170,7 @@ public class AuthService {
         }
     }
 
-    public void generateForgotPasswordVerificationToken(@NotNull Auth auth) {
-
+    public void submitForgotPasswordVerificationToken(@NotNull Auth auth) {
         try {
             authDao.submitForgotPasswordVerificationToken(auth);
             clearFromRedisCache();
@@ -282,6 +283,7 @@ public class AuthService {
         try {
             authDao.resetPassword(auth);
             clearFromRedisCache();
+            userService.clearFromRedisCache();
         } catch (Exception ex) {
             logger.error(ex.getMessage());
         }
@@ -291,6 +293,168 @@ public class AuthService {
 
         try {
             authDao.deletePasswordResetToken(email);
+            clearFromRedisCache();
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+    }
+
+    public void submitPhoneVerificationToken(Auth auth) {
+        try {
+            authDao.submitPhoneVerificationToken(auth);
+            clearFromRedisCache();
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Result<Auth> retrievePhoneVerificationToken(String phone) {
+        try {
+            String key = "auth_retrievePhoneVerificationToken_phone_"+phone+"";
+            Result<Auth> data = (Result<Auth>) cacheRepository.get(authCache,key);
+            if (data == null) {
+                data = authDao.retrievePhoneVerificationToken(phone);
+                if (data.getData() != null) {
+                    cacheRepository.put(authCache,key,data);
+                }
+            }
+            return data;
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Result<Auth> retrieveAllPhoneVerificationTokens(int pageNumber, int pageSize) {
+        try {
+            String key = "auth_retrieveAllPhoneVerificationToken_pageNumber_"+pageNumber+"_pageSize_"+pageSize+"";
+            Result<Auth> data = (Result<Auth>) cacheRepository.get(authCache,key);
+            if (data == null) {
+                data = authDao.retrieveAllPhoneVerificationTokens(pageNumber,pageSize);
+                if (!data.getList().isEmpty()) {
+                    cacheRepository.put(authCache,key,data);
+                }
+            }
+            return data;
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+        return null;
+    }
+
+    private void deletePhoneVerificationToken(String phone) {
+        try {
+            authDao.deletePhoneVerificationToken(phone);
+            clearFromRedisCache();
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+    }
+
+    public void submitEmailVerificationToken(Auth auth) {
+        try {
+            authDao.submitEmailVerificationToken(auth);
+            clearFromRedisCache();
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Result<Auth> retrieveEmailVerificationToken(String email) {
+        try {
+            String key = "auth_retrieveEmailVerificationToken_email_"+email+"";
+            Result<Auth> data = (Result<Auth>) cacheRepository.get(authCache,key);
+            if (data == null) {
+                data = authDao.retrieveEmailVerificationToken(email);
+                if (data.getData() != null) {
+                    cacheRepository.put(authCache,key,data);
+                }
+            }
+            return data;
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Result<Auth> retrieveAllEmailVerificationTokens(int pageNumber, int pageSize) {
+        try {
+            String key = "auth_retrieveAllEmailVerificationTokens_pageNumber_"+pageNumber+"_pageSize_"+pageSize+"";
+            Result<Auth> data = (Result<Auth>) cacheRepository.get(authCache,key);
+            if (data == null) {
+                data = authDao.retrieveAllEmailVerificationTokens(pageNumber,pageSize);
+                if (!data.getList().isEmpty()) {
+                    cacheRepository.put(authCache,key,data);
+                }
+            }
+            return data;
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+        return null;
+    }
+
+    private void deleteEmailVerificationToken(String email) {
+        try {
+            authDao.deleteEmailVerificationToken(email);
+            clearFromRedisCache();
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+    }
+
+    public void submitTwoFactorVerificationToken(Auth auth) {
+        try {
+            authDao.submitTwoFactorVerificationToken(auth);
+            clearFromRedisCache();
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Result<Auth> retrieveTwoFactorVerificationToken(String phone) {
+        try {
+            String key = "auth_retrieveTwoFactorVerificationToken_phone_"+phone+"";
+            Result<Auth> data = (Result<Auth>) cacheRepository.get(authCache,key);
+            if (data == null) {
+                data = authDao.retrieveTwoFactorVerificationToken(phone);
+                if (data.getData() != null) {
+                    cacheRepository.put(authCache,key,data);
+                }
+            }
+            return data;
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    public Result<Auth> retrieveAllTwoFactorVerificationTokens(int pageNumber, int pageSize) {
+        try {
+            String key = "auth_retrieveAllTwoFactorVerificationTokens_pageNumber_"+pageNumber+"_pageSize_"+pageSize+"";
+            Result<Auth> data = (Result<Auth>) cacheRepository.get(authCache,key);
+            if (data == null) {
+                data = authDao.retrieveAllTwoFactorVerificationTokens(pageNumber,pageSize);
+                if (data.getData() != null) {
+                    cacheRepository.put(authCache,key,data);
+                }
+            }
+            return data;
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+        return null;
+    }
+
+    private void deleteTwoFactorVerificationToken(String phone) {
+        try {
+            authDao.deleteTwoFactorVerificationToken(phone);
             clearFromRedisCache();
         } catch (Exception e) {
             logger.error(e.getMessage());

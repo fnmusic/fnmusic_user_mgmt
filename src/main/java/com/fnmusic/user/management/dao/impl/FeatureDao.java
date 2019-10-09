@@ -3,7 +3,6 @@ package com.fnmusic.user.management.dao.impl;
 import com.fnmusic.base.dao.AbstractBaseDao;
 import com.fnmusic.base.models.Feature;
 import com.fnmusic.base.models.Result;
-import com.fnmusic.base.models.Role;
 import com.fnmusic.user.management.dao.IFeatureDao;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;

@@ -2,12 +2,16 @@ package com.fnmusic.user.management.api;
 
 import com.fnmusic.base.models.*;
 import com.fnmusic.base.security.AccessTokenWithUserDetails;
+import com.fnmusic.base.utils.AuditLogType;
+import com.fnmusic.base.utils.CharacterType;
 import com.fnmusic.base.utils.ConstantUtils;
+import com.fnmusic.base.utils.RandomGeneratorUtils;
 import com.fnmusic.user.management.exception.BadRequestException;
 import com.fnmusic.user.management.exception.InternalServerErrorException;
 import com.fnmusic.user.management.exception.NotFoundException;
 import com.fnmusic.user.management.messaging.AuditLogPublisher;
 import com.fnmusic.user.management.messaging.MailPublisher;
+import com.fnmusic.user.management.messaging.SMSPublisher;
 import com.fnmusic.user.management.models.Auth;
 import com.fnmusic.user.management.models.Signup;
 import com.fnmusic.user.management.services.AuthService;
@@ -35,17 +39,19 @@ import java.util.List;
 public class AuthController {
 
     @Autowired
-    private HashService hashService;
+    HashService hashService;
     @Autowired
-    private UserService userService;
+    UserService userService;
     @Autowired
-    private AuthService authService;
+    AuthService authService;
     @Autowired
-    private MailPublisher mailPublisher;
+    MailPublisher mailPublisher;
     @Autowired
-    private TokenService tokenService;
+    TokenService tokenService;
     @Autowired
-    private AuditLogPublisher auditLogPublisher;
+    AuditLogPublisher auditLogPublisher;
+    @Autowired
+    SMSPublisher smsPublisher;
 
     private static Logger logger = LoggerFactory.getLogger(AuthController.class);
 
@@ -87,11 +93,11 @@ public class AuthController {
 
         AuditLog auditLog = new AuditLog();
         auditLog.setUserId(String.valueOf(user.getId()));
+        auditLog.setAuditLogType(AuditLogType.USER);
         auditLog.setEvent("ACCOUNT REGISTRATION");
         auditLog.setDescription(user.getEmail() + " created an account");
         auditLog.setRole(Role.USER);
-        auditLog.setAuditObject(user);
-        auditLog.setTimeStamp(new Date().getTime());
+        auditLog.setAuditLogObject(user);
         auditLogPublisher.publish(auditLog);
 
         ServiceResponse response = new ServiceResponse();
@@ -110,23 +116,23 @@ public class AuthController {
             result = userService.retrieveUserByUsername(uid);
             user = result.getData();
             if (user == null) {
-                throw new BadRequestException("User does not exist");
+                throw new BadRequestException("user does not exist");
             }
         }
 
         if (user.isLockOutEnabled()) {
-            throw new BadRequestException("Your account is locked");
+            throw new BadRequestException("your account is locked");
         }
 
         String loginPasswordHash = hashService.encode(password);
         if (!loginPasswordHash.equalsIgnoreCase(user.getPasswordHash())) {
             userService.increaseLoginAttempt(user.getEmail());
-            throw new BadRequestException("Login failed, username or password incorrect");
+            throw new BadRequestException("username or password incorrect");
         }
 
         AccessTokenWithUserDetails access = userService.login(user);
         if (access == null) {
-            throw new InternalServerErrorException("Sorry, we were unable to log you in, please try again later");
+            throw new InternalServerErrorException("we were unable to log you in, please try again later");
         }
 
         //clear all failed signin attempts
@@ -134,11 +140,11 @@ public class AuthController {
 
         AuditLog auditLog = new AuditLog();
         auditLog.setUserId(String.valueOf(user.getId()));
+        auditLog.setAuditLogType(AuditLogType.USER);
         auditLog.setEvent("LOGIN");
-        auditLog.setDescription(user.getId() + " logged into their account");
+        auditLog.setDescription(user.getId() + " successfully logged into their account");
         auditLog.setRole(user.getRole());
-        auditLog.setAuditObject(access.hashCode());
-        auditLog.setTimeStamp(new Date().getTime());
+        auditLog.setAuditLogObject(access.hashCode());
         auditLogPublisher.publish(auditLog);
 
         return access;
@@ -146,24 +152,38 @@ public class AuthController {
 
     @PostMapping(value = "/signin/verification")
     @ResponseStatus(HttpStatus.OK)
-    public ServiceResponse LoginVerification(@RequestHeader("X-AUTH-EMAIL") String email) {
+    public ServiceResponse sendLoginVerificationToken(@RequestHeader("X-AUTH-EMAIL") String email) {
 
         Result<User> result = userService.retrieveUserByEmail(email);
         if (result.getData() == null) {
             throw new BadRequestException("Invalid Request");
         }
 
-        String verificationToken = tokenService.generateToken(6);
+        String verificationToken = RandomGeneratorUtils.generateCode(CharacterType.ALPHABETIC,6);
         Calendar calendar = Calendar.getInstance();
-        calendar.set(Calendar.YEAR,Calendar.MONTH,Calendar.DATE + 1);
+        calendar.set(calendar.get(Calendar.YEAR),calendar.get(Calendar.MONTH),calendar.get(Calendar.DATE) + 1);
 
         Auth auth = new Auth();
         auth.setEmail(email);
         auth.setToken(verificationToken);
         auth.setExpiryDate(calendar.getTime());
         authService.submitLoginVerificationToken(auth);
-        //send verificationToken to user via sms
 
+        //send verificationToken to user via sms
+        SMS sms = new SMS();
+        sms.setUserId(result.getData().getId().toString());
+        sms.setRecipient(result.getData().getPhone());
+        sms.setMessage("Your " + ConstantUtils.APPNAME + " login verification code is " + verificationToken);
+        smsPublisher.publish(sms);
+
+        AuditLog auditLog = new AuditLog();
+        auditLog.setUserId(result.getData().getId().toString());
+        auditLog.setAuditLogType(AuditLogType.USER);
+        auditLog.setEvent("LOGIN VERIFICATION TOKEN REQUEST");
+        auditLog.setDescription(auth.getEmail() + " requested for a login verification token");
+        auditLog.setRole(result.getData().getRole());
+        auditLog.setAuditLogObject(auth);
+        auditLogPublisher.publish(auditLog);
 
         ServiceResponse response = new ServiceResponse();
         response.setCode("200");
@@ -185,11 +205,20 @@ public class AuthController {
         if (authResult.getData() == null) {
             throw new BadRequestException("Invalid Request");
         }
-        Auth auth = authResult.getData();
 
+        Auth auth = authResult.getData();
         if (!token.equalsIgnoreCase(auth.getToken())) {
             throw new BadRequestException("incorrect verification token");
         }
+
+        AuditLog auditLog = new AuditLog();
+        auditLog.setUserId(result.getData().getId().toString());
+        auditLog.setAuditLogType(AuditLogType.USER);
+        auditLog.setEvent("LOGIN TOKEN VERIFICATION");
+        auditLog.setDescription(auth.getEmail() + " successfully verified their login verification token");
+        auditLog.setRole(result.getData().getRole());
+        auditLog.setAuditLogObject(auth);
+        auditLogPublisher.publish(auditLog);
 
         ServiceResponse response = new ServiceResponse();
         response.setCode("200");
@@ -200,7 +229,7 @@ public class AuthController {
 
     @PostMapping("/confirm")
     @ResponseStatus(HttpStatus.OK)
-    public ServiceResponse confirmationMail(@RequestHeader("Email") String email) {
+    public ServiceResponse sendEmailConfirmationMessage(@RequestHeader("Email") String email, @RequestHeader("ActivationLink") String link) {
 
         Result<User> result = userService.retrieveUserByEmail(email);
         User user = result.getData();
@@ -210,7 +239,7 @@ public class AuthController {
 
         Calendar calendar = Calendar.getInstance();
         calendar.set(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DATE) + 30);
-        String token = tokenService.generateToken(20);
+        String token = RandomGeneratorUtils.generateCode(CharacterType.ALPHANUMERIC,20).toLowerCase();
 
         Auth auth = new Auth();
         auth.setEmail(email);
@@ -219,16 +248,25 @@ public class AuthController {
         authService.submitActivationToken(auth);
 
         Mail mail = new Mail();
-        mail.setUserId(String.valueOf(user.getId()));
-        mail.setMailTo(new String[]{user.getEmail()});
+        mail.setUserId(user.getId());
+        mail.setTo(new String[]{user.getEmail()});
         mail.setSubject("ACTIVATE YOUR ACCOUNT");
         mail.setText(
                 "Thanks for using fnmusic! Please confirm your email address by clicking on the link below \n" +
                         "We may need to communicate with you via email on our exciting newsletters and services packages so it's important that we hava an up-to-date email address \n " +
                         "Thank you."
         );
-        mail.setActionUrl(ConstantUtils.WEBURL + "/"+user.getEmail()+"/activate/" + token);
+        mail.setActionUrl(link + token);
         mailPublisher.publish(mail);
+
+        AuditLog auditLog = new AuditLog();
+        auditLog.setUserId(user.getId().toString());
+        auditLog.setAuditLogType(AuditLogType.USER);
+        auditLog.setEvent("EMAIL CONFIRMATION MESSAGE REQUEST");
+        auditLog.setDescription(user.getEmail() + " requested for an email confirmation message");
+        auditLog.setRole(user.getRole());
+        auditLog.setAuditLogObject(auth);
+        auditLogPublisher.publish(auditLog);
 
         ServiceResponse response = new ServiceResponse();
         response.setCode(String.valueOf(HttpStatus.CREATED.value()));
@@ -239,7 +277,12 @@ public class AuthController {
 
     @PostMapping(value = "/activate", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
-    public ServiceResponse activate(@RequestHeader("Email") @Email(message = "Invalid Email") @NotEmpty String email, @RequestHeader("Token") @NotEmpty String token) {
+    public ServiceResponse activate(@RequestHeader("Email") @Email @NotEmpty String email, @RequestHeader("Token") @NotEmpty String token) {
+
+        Result<User> result = userService.retrieveUserByEmail(email);
+        if (!email.equalsIgnoreCase(result.getData().getEmail())) {
+            throw new BadRequestException("Invalid Request");
+        }
 
         Result<Auth> tokenResult = authService.retrieveActivationToken(email);
         Auth auth = tokenResult.getData();
@@ -263,12 +306,12 @@ public class AuthController {
         authService.activateAccount(auth);
 
         AuditLog auditLog = new AuditLog();
-        auditLog.setUserId(String.valueOf(userService.retrieveUserByEmail(email).getData().getId()));
+        auditLog.setUserId(String.valueOf(result.getData().getId()));
+        auditLog.setAuditLogType(AuditLogType.USER);
         auditLog.setEvent("ACCOUNT ACTIVATION");
-        auditLog.setDescription(email + " activated their account");
+        auditLog.setDescription(email + " successfully activated their account");
         auditLog.setRole(Role.USER);
-        auditLog.setAuditObject(auth);
-        auditLog.setTimeStamp(new Date().getTime());
+        auditLog.setAuditLogObject(auth);
         auditLogPublisher.publish(auditLog);
 
         ServiceResponse response = new ServiceResponse();
@@ -278,9 +321,9 @@ public class AuthController {
         return response;
     }
 
-    @PostMapping(value = "/forgotpassword")
+    @PostMapping(value = "/forgotpassword/verification")
     @ResponseStatus(HttpStatus.OK)
-    public ServiceResponse forgotPassword(@RequestHeader("Email") @Email String email) throws Exception {
+    public ServiceResponse sendForgotPasswordVerificationToken(@RequestHeader("Email") @Email String email) {
 
         Result<User> byEmail = userService.retrieveUserByEmail(email);
         if (byEmail.getData() == null) {
@@ -291,37 +334,39 @@ public class AuthController {
         Calendar calendar = Calendar.getInstance();
         calendar.set(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH),calendar.get(Calendar.DATE) + 1);
 
+        String verificationToken = RandomGeneratorUtils.generateCode(CharacterType.NUMERIC,6);
         Auth auth = new Auth();
         auth.setEmail(email);
         auth.setExpiryDate(calendar.getTime());
+        auth.setToken(verificationToken);
+        authService.submitForgotPasswordVerificationToken(auth);
+
+        Mail mail = new Mail();
+        mail.setTo(new String[]{ email });
+        mail.setUserId(byEmail.getData().getId());
+        mail.setSubject("PASSWORD CHANGE VERIFICATION CODE");
+        mail.setText("Your Verification code is " + verificationToken);
+        mailPublisher.publish(mail);
+
+        AuditLog auditLog = new AuditLog();
+        auditLog.setUserId(byEmail.getData().getId().toString());
+        auditLog.setAuditLogType(AuditLogType.USER);
+        auditLog.setEvent("FORGOT PASSWORD VERIFICATION TOKEN REQUEST");
+        auditLog.setDescription(byEmail.getData().getEmail() + " requested for a forgot-password verification token");
+        auditLog.setRole(byEmail.getData().getRole());
+        auditLog.setAuditLogObject(auth);
+        auditLogPublisher.publish(auditLog);
 
         ServiceResponse response = new ServiceResponse();
-
-        if (byEmail.getData().isPasswordResetProtection()) {
-            String verificationToken = tokenService.generateToken(6);
-            auth.setToken(verificationToken);
-            authService.generateForgotPasswordVerificationToken(auth);
-
-            Mail mail = new Mail();
-            mail.setMailTo(new String[]{ email });
-            mail.setUserId(String.valueOf(byEmail.getData().getId()));
-            mail.setSubject("PASSWORD CHANGE VERIFICATION CODE");
-            mail.setText("Your Verification code is " + verificationToken);
-            mailPublisher.publish(mail);
-
-            response.setCode("200");
-            response.setDescription("Kindly check your email for your verification code");
-        }
-        else {
-            response = generatePasswordResetToken(email,"none");
-        }
+        response.setCode("200");
+        response.setDescription("Kindly check your email for your verification code");
 
         return response;
     }
 
-    @PostMapping(value ="/forgotpassword/verify")
+    @PostMapping(value ="/forgotpassword/verification/token")
     @ResponseStatus(HttpStatus.OK)
-    public ServiceResponse verifyForgotPasswordVerificationToken(@RequestHeader("Email") @Email(message = "Invalid Email") String email, @RequestHeader("Token") String token) {
+    public ServiceResponse verifyForgotPasswordVerificationToken(@RequestHeader("Email") @Email String email, @RequestHeader("Token") String token) {
 
         Result<User> byEmail = userService.retrieveUserByEmail(email);
         if (byEmail.getData() == null) {
@@ -333,6 +378,15 @@ public class AuthController {
             throw new BadRequestException("Incorrect Verification Token");
         }
 
+        AuditLog auditLog = new AuditLog();
+        auditLog.setUserId(byEmail.getData().getId().toString());
+        auditLog.setAuditLogType(AuditLogType.USER);
+        auditLog.setEvent("FORGOT PASSWORD TOKEN VERIFICATION");
+        auditLog.setDescription(byEmail.getData().getEmail() + " successfully verified their forgot-password verification token");
+        auditLog.setRole(byEmail.getData().getRole());
+        auditLog.setAuditLogObject(authResult.getData());
+        auditLogPublisher.publish(auditLog);
+
         ServiceResponse response = new ServiceResponse();
         response.setCode("200");
         response.setDescription("Your email was verified successfully");
@@ -342,29 +396,14 @@ public class AuthController {
 
     @PostMapping(value = "/passwordreset", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public ServiceResponse generatePasswordResetToken(@RequestHeader("Email") @Email @NotEmpty String email, @RequestHeader("Token") String token) throws Exception {
-
-        if (!token.equalsIgnoreCase("none")) {
-            Result<Auth> tokenResult = authService.retrieveForgotPasswordVerificationToken(email);
-            if (tokenResult == null) {
-                throw new BadRequestException("Invalid Request");
-            }
-
-            if (!token.equalsIgnoreCase(tokenResult.getData().getToken())) {
-                throw new BadRequestException("Invalid Request");
-            }
-
-            if (!email.equalsIgnoreCase(tokenResult.getData().getEmail())) {
-                throw new BadRequestException(("Invalid Request"));
-            }
-        }
+    public ServiceResponse sendPasswordResetLink(@RequestHeader("Email") @Email @NotEmpty String email, @RequestHeader("ResetLink") String link) {
 
         Result<User> byEmail = userService.retrieveUserByEmail(email);
         if (byEmail.getData() == null) {
             throw new NotFoundException("This email does not exist");
         }
 
-        String passwordResetToken = tokenService.generateToken(15);
+        String passwordResetToken = RandomGeneratorUtils.generateCode(CharacterType.ALPHABETIC,6);
         Calendar calendar = Calendar.getInstance();
         calendar.set(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH),calendar.get(Calendar.DATE) + 1);
 
@@ -375,24 +414,24 @@ public class AuthController {
         authService.generatePasswordResetToken(auth);
 
         Mail mail = new Mail();
-        mail.setUserId(String.valueOf(byEmail.getData().getId()));
-        mail.setMailTo(new String[]{email});
+        mail.setUserId(byEmail.getData().getId());
+        mail.setTo(new String[]{email});
         mail.setSubject("RESET YOUR PASSWORD");
         mail.setText(
                 "Dear "+email+", \n" +
                 "Kindly click this button below to activate your account. \n " +
                 "Thank you."
         );
-        mail.setActionUrl(ConstantUtils.WEBURL + "/"+email+"/passwordreset/" + passwordResetToken);
+        mail.setActionUrl(link + passwordResetToken);
         mailPublisher.publish(mail);
 
         AuditLog auditLog = new AuditLog();
         auditLog.setUserId(String.valueOf(byEmail.getData().getId()));
-        auditLog.setEvent("FORGOT PASSWORD");
-        auditLog.setDescription(email + " forgot their password");
+        auditLog.setAuditLogType(AuditLogType.USER);
+        auditLog.setEvent("PASSWORD RESET TOKEN REQUEST");
+        auditLog.setDescription(email + " requested for a password-reset token");
         auditLog.setRole(Role.USER);
-        auditLog.setAuditObject(auth);
-        auditLog.setTimeStamp(new Date().getTime());
+        auditLog.setAuditLogObject(auth);
         auditLogPublisher.publish(auditLog);
 
         ServiceResponse response = new ServiceResponse();
@@ -442,11 +481,11 @@ public class AuthController {
 
         AuditLog auditLog = new AuditLog();
         auditLog.setUserId(String.valueOf(user.getId()));
-        auditLog.setEvent("PASSWORD RESET");
-        auditLog.setDescription(user.getEmail() + " reset their password");
+        auditLog.setAuditLogType(AuditLogType.USER);
+        auditLog.setEvent("RESET PASSWORD");
+        auditLog.setDescription(user.getEmail() + " successfully reset their password");
         auditLog.setRole(user.getRole());
-        auditLog.setAuditObject(auth);
-        auditLog.setTimeStamp(new Date().getTime());
+        auditLog.setAuditLogObject(auth);
         auditLogPublisher.publish(auditLog);
 
         ServiceResponse response = new ServiceResponse();

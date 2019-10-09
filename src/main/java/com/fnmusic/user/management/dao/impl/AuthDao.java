@@ -430,5 +430,129 @@ public class AuthDao extends AbstractBaseDao<Auth> implements IAuthDao<Auth> {
         return new Result<Auth>(resultCode);
     }
 
+    @Override
+    public Result<Auth> submitPhoneVerificationToken(Auth auth) {
+        pspCreate = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_submit_phone_verification_token")
+                .withReturnValue();
 
+        return create(auth);
+    }
+
+    @Override
+    public Result<Auth> retrievePhoneVerificationToken(String phone) {
+        pspRetrieveByPhone = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_retrieve_phone_verification_token")
+                .withReturnValue()
+                .returningResultSet(DATA, BeanPropertyRowMapper.newInstance(Auth.class));
+
+        return retrieveByPhone(phone);
+    }
+
+    @Override
+    public Result<Auth> retrieveAllPhoneVerificationTokens(int pageNumber, int pageSize) {
+        pspRetrieveAll = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_retrieve_all_phone_verification_tokens")
+                .withReturnValue()
+                .returningResultSet(LIST, BeanPropertyRowMapper.newInstance(Auth.class));
+
+        return retrieveAll(pageNumber,pageSize);
+    }
+
+    @Override
+    public Result<Auth> deletePhoneVerificationToken(String phone) {
+        pspDeleteByPhone = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_delete_phone_verification_token")
+                .withReturnValue();
+
+        return deleteByPhone(phone);
+    }
+
+    @Override
+    public Result<Auth> submitEmailVerificationToken(Auth auth) {
+        pspCreate = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_submit_email_verification_token")
+                .withReturnValue();
+
+        return create(auth);
+    }
+
+    @Override
+    public Result<Auth> retrieveEmailVerificationToken(String email) {
+        pspRetrieveByEmail = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_retrieve_email_verification_token")
+                .withReturnValue()
+                .returningResultSet(DATA, BeanPropertyRowMapper.newInstance(Auth.class));
+
+        return retrieveByEmail(email);
+    }
+
+    @Override
+    public Result<Auth> retrieveAllEmailVerificationTokens(int pageNumber, int pageSize) {
+        pspRetrieveAll = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_retrieve_all_email_verification_tokens")
+                .withReturnValue()
+                .returningResultSet(LIST, BeanPropertyRowMapper.newInstance(Auth.class));
+
+        return retrieveAll(pageNumber,pageSize);
+    }
+
+    @Override
+    public Result<Auth> deleteEmailVerificationToken(String email) {
+        pspDeleteByEmail = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_delete_email_verification_token")
+                .withReturnValue();
+
+        return deleteByEmail(email);
+    }
+
+    @Override
+    public Result<Auth> submitTwoFactorVerificationToken(Auth auth) {
+        pspCreate = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_submit_two_factor_verification_token")
+                .withReturnValue();
+
+        return create(auth);
+    }
+
+    @Override
+    public Result<Auth> retrieveTwoFactorVerificationToken(String phone) {
+        pspRetrieveByPhone = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_retrieve_two_factor_verification_token")
+                .withReturnValue()
+                .returningResultSet(DATA, BeanPropertyRowMapper.newInstance(Auth.class));
+
+        return retrieveByPhone(phone);
+    }
+
+    @Override
+    public Result<Auth> retrieveAllTwoFactorVerificationTokens(int pageNumber, int pageSize) {
+        pspRetrieveAll = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_retrieve_all_two_factor_verification_tokens")
+                .withReturnValue()
+                .returningResultSet(LIST, BeanPropertyRowMapper.newInstance(Auth.class));
+
+        return retrieveAll(pageNumber,pageSize);
+    }
+
+    @Override
+    public Result<Auth> deleteTwoFactorVerificationToken(String phone) {
+        pspDeleteByPhone = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_delete_two_factor_verification_token")
+                .withReturnValue();
+
+        return deleteByPhone(phone);
+    }
 }

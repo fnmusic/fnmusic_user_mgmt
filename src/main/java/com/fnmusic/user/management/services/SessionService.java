@@ -18,7 +18,7 @@ public class SessionService {
     private SessionDao sessionDao;
     @Autowired
     private CacheRepository cacheRepository;
-    @Value("${app.services.auth.redisTtl}")
+    @Value("${app.redisTtl}")
     private long redisTtl;
 
     private Object sessionCache;

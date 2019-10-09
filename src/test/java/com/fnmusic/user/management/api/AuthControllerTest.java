@@ -6,12 +6,15 @@ import com.fnmusic.base.models.User;
 import com.fnmusic.base.security.AccessTokenWithUserDetails;
 import com.fnmusic.user.management.messaging.AuditLogPublisher;
 import com.fnmusic.user.management.messaging.MailPublisher;
+import com.fnmusic.user.management.messaging.SMSPublisher;
+import com.fnmusic.user.management.models.Auth;
 import com.fnmusic.user.management.models.Signup;
 import com.fnmusic.user.management.services.AuthService;
 import com.fnmusic.user.management.services.HashService;
 import com.fnmusic.user.management.services.TokenService;
 import com.fnmusic.user.management.services.UserService;
 import com.fnmusic.user.management.utils.ModelUtils;
+import com.netflix.ribbon.proxy.annotation.Http;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -23,6 +26,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.ui.Model;
 
 import java.security.NoSuchAlgorithmException;
 
@@ -50,6 +54,8 @@ public class AuthControllerTest {
     private MailPublisher mailPublisher;
     @MockBean
     private AuditLogPublisher auditLogPublisher;
+    @MockBean
+    private SMSPublisher smsPublisher;
 
     private String requestPath;
     private String email;
@@ -64,29 +70,14 @@ public class AuthControllerTest {
         username = "JohnDoe";
         newpassword = "newpassword";
 
-        given(hashService.encode("1234567890"))
-                .willReturn("3247325873284234");
+
         given(hashService.encode(newpassword))
                 .willReturn("3482948324792478");
 
-        Signup signup = ModelUtils.signup();
-        given(userService.retrieveUserByEmail(signup.getEmail()))
-                .willReturn(new Result<>());
-        given(userService.retrieveUserByUsername(signup.getUsername()))
-                .willReturn(new Result<>());
-        given(userService.create(any(User.class)))
-                .willReturn(new Result<>(0,1L));
+
 
         User user = ModelUtils.user();
-        given(userService.retrieveUserByEmail(email))
-                .willReturn(new Result<>(0,user));
-        given(userService.retrieveUserByEmail(username))
-                .willReturn(new Result<>());
 
-        given(userService.retrieveUserByUsername(email))
-                .willReturn(new Result<>());
-        given(userService.retrieveUserByUsername(username))
-                .willReturn(new Result<>(0,user));
 
         AccessTokenWithUserDetails access = new AccessTokenWithUserDetails();
         access.setAccessToken("3682757574735j47y58y483y598y385934y5435839");
@@ -113,6 +104,17 @@ public class AuthControllerTest {
 
     @Test
     public void signUp() throws Exception {
+
+        Signup signup = ModelUtils.signup();
+        given(hashService.encode("1234567890"))
+                .willReturn("3247325873284234");
+        given(userService.retrieveUserByEmail(signup.getEmail()))
+                .willReturn(new Result<>());
+        given(userService.retrieveUserByUsername(signup.getUsername()))
+                .willReturn(new Result<>());
+        given(userService.create(any(User.class)))
+                .willReturn(new Result<>(0,1L));
+
         mvc.perform(MockMvcRequestBuilders
                 .post(requestPath + "/signup")
                 .accept(MediaType.APPLICATION_JSON_VALUE)
@@ -124,6 +126,13 @@ public class AuthControllerTest {
 
     @Test
     public void signInByEmail() throws Exception {
+
+        User user = ModelUtils.user();
+        given(userService.retrieveUserByEmail(email))
+                .willReturn(new Result<>(0,user));
+        given(hashService.encode("1234567890"))
+                .willReturn("3247325873284234");
+
         HttpHeaders headers = new HttpHeaders();
         headers.add("X-AUTH-UID",email);
         headers.add("X-AUTH-PASSWORD","1234567890");
@@ -139,6 +148,15 @@ public class AuthControllerTest {
 
     @Test
     public void signInByUsername() throws Exception {
+
+        User user = ModelUtils.user();
+        given(userService.retrieveUserByEmail(username))
+                .willReturn(new Result<>(0));
+        given(userService.retrieveUserByUsername(username))
+                .willReturn(new Result<>(0,user));
+        given(hashService.encode("1234567890"))
+                .willReturn("3247325873284234");
+
         HttpHeaders headers = new HttpHeaders();
         headers.add("X-AUTH-UID",username);
         headers.add("X-AUTH-PASSWORD","1234567890");
@@ -153,20 +171,66 @@ public class AuthControllerTest {
     }
 
     @Test
+    public void sendLoginVerificationToken() throws Exception {
+        User user = ModelUtils.user();
+        given(userService.retrieveUserByEmail(email))
+                .willReturn(new Result<>(0,user));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("X-AUTH-EMAIL",email);
+
+        mvc.perform(MockMvcRequestBuilders
+                .post(requestPath + "/signin/verification")
+                .accept(MediaType.APPLICATION_JSON_VALUE)
+                .headers(headers)
+        ).andExpect(status().is2xxSuccessful());
+
+    }
+
+    @Test
+    public void verifyLoginVerificationToken() throws Exception {
+        User user = ModelUtils.user();
+        given(userService.retrieveUserByEmail(email))
+                .willReturn(new Result<User>(0,user));
+
+        Auth auth = ModelUtils.auth();
+        given(authService.retrieveLoginVerificationToken(email))
+                .willReturn(new Result<Auth>(0,auth));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("X-AUTH-EMAIL",email);
+        headers.add("X-AUTH-TOKEN","1234567890");
+
+        mvc.perform(MockMvcRequestBuilders
+                .post(requestPath + "/signin/verification/token")
+                .accept(MediaType.APPLICATION_JSON)
+                .headers(headers)
+        ).andExpect(status().is2xxSuccessful());
+    }
+
+    @Test
     public void sendConfirmationMail() throws Exception {
+        User user = ModelUtils.user();
+        given(userService.retrieveUserByEmail(email))
+                .willReturn(new Result<User>(0,user));
+
         HttpHeaders headers = new HttpHeaders();
         headers.add("Email",email);
+        headers.add("ActivationLink","/activate");
 
         mvc.perform(MockMvcRequestBuilders
                 .post(requestPath + "/confirm")
                 .accept(MediaType.APPLICATION_JSON_VALUE)
                 .headers(headers)
-        )
-                .andExpect(status().is2xxSuccessful());
+        ).andExpect(status().is2xxSuccessful());
     }
 
     @Test
     public void activateAccount() throws Exception {
+        User user = ModelUtils.user();
+        given(userService.retrieveUserByEmail(email))
+                .willReturn(new Result<User>(0,user));
+
         HttpHeaders headers = new HttpHeaders();
         headers.add("Email",email);
         headers.add("Token", "1234567890");

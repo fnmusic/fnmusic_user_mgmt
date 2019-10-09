@@ -10,10 +10,10 @@ import org.springframework.stereotype.Component;
 public class NotificationPublisher extends AbstractPublisher<Notification> {
 
     @Autowired
-    private RabbitTemplate notificationTemplate;
+    RabbitTemplate notificationTemplate;
 
     @Override
     public void init() {
-        this.abstractRabbitTemplate = notificationTemplate;
+        rabbitTemplate = notificationTemplate;
     }
 }

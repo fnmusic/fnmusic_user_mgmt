@@ -9,7 +9,7 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.fnmusic</groupId>
-	<artifactId>fnmusic_user_mgmt</artifactId>
+	<artifactId>fnmusic-user-mgmt</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>fnmusic_user_mgmt</name>
 	<description>Demo project for Spring Boot</description>
@@ -21,8 +21,13 @@
 
 	<dependencies>
 		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+			<version>2.1.2.RELEASE</version>
+		</dependency>
+		<dependency>
 			<groupId>com.fnmusic</groupId>
-			<artifactId>fnmusic_base</artifactId>
+			<artifactId>fnmusic-base</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
 		<dependency>
@@ -119,11 +124,9 @@
 		<resources>
 			<resource>
 				<directory>src/main/resources</directory>
-				<filtering>false</filtering>
 			</resource>
 			<resource>
 				<directory>src/main/config</directory>
-				<filtering>true</filtering>
 			</resource>
 		</resources>
 		<plugins>

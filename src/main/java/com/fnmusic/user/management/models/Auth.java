@@ -7,6 +7,7 @@ public class Auth implements Serializable {
 
     private long id;
     private String email;
+    private String phone;
     private String token;
     private String passwordHash;
     private Date expiryDate;
@@ -25,6 +26,14 @@ public class Auth implements Serializable {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 
     public String getToken() {

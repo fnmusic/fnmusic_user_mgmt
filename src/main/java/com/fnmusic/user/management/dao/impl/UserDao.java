@@ -43,6 +43,9 @@ public class UserDao extends AbstractBaseDao<User> implements IUserDao<User> {
     private SimpleJdbcCall uspUnsuspendUser;
     private SimpleJdbcCall uspRetrieveAllLockedUsers;
     private SimpleJdbcCall uspUnlockUserById;
+    private SimpleJdbcCall uspUpdatePhoneConfirmed;
+    private SimpleJdbcCall uspUpdateEmailConfirmed;
+    private SimpleJdbcCall uspUpdatePassword;
 
     @Override
     public void init() {
@@ -193,6 +196,21 @@ public class UserDao extends AbstractBaseDao<User> implements IUserDao<User> {
                 .withProcedureName("usp_unlock_user_by_id")
                 .withReturnValue();
 
+        uspUpdatePhoneConfirmed = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_update_phone_confirmed")
+                .withReturnValue();
+
+        uspUpdateEmailConfirmed = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_update_email_confirmed")
+                .withReturnValue();
+
+        uspUpdatePassword = new SimpleJdbcCall(jdbcTemplate)
+                .withSchemaName("dbo")
+                .withProcedureName("usp_update_password")
+                .withReturnValue();
+
     }
 
     @Transactional
@@ -204,7 +222,6 @@ public class UserDao extends AbstractBaseDao<User> implements IUserDao<User> {
     @Transactional
     @Override
     public Result<User> increaseLoginAttempt(String email, Date lockOutEndDate) {
-
         if (uspIncreaseLoginAttempt == null) {
             throw new IllegalStateException("uspIncreaseAccessFailedCount has not been initialized by utilizing dao");
         }
@@ -245,14 +262,14 @@ public class UserDao extends AbstractBaseDao<User> implements IUserDao<User> {
 
     @Transactional
     @Override
-    public Result<User> updateUsername(String email, String username) {
+    public Result<User> updateUsername(long id, String username) {
 
         if (uspUpdateUsername == null) {
             throw new IllegalStateException("uspUpdateUsername cannot be null");
         }
 
         SqlParameterSource in = new MapSqlParameterSource()
-                .addValue("email",email)
+                .addValue("id",id)
                 .addValue("username",username);
         Map<String,Object> m = uspUpdateUsername.execute(in);
 
@@ -262,16 +279,33 @@ public class UserDao extends AbstractBaseDao<User> implements IUserDao<User> {
 
     @Transactional
     @Override
-    public Result<User> updatePhone(String email, String phone) {
+    public Result<User> updatePhone(long id, String phone) {
 
         if (uspUpdatePhone == null) {
             throw new IllegalStateException("uspUpdatePhone cannot be null");
         }
 
         SqlParameterSource in = new MapSqlParameterSource()
-                .addValue("email",email)
+                .addValue("id",id)
                 .addValue("phone",phone);
         Map<String,Object> m = uspUpdatePhone.execute(in);
+
+        int resultCode = m.containsKey(RETURN_VALUE) ? (Integer) m.get(RETURN_VALUE) : 0;
+        return new Result<>(resultCode);
+    }
+
+    @Transactional
+    @Override
+    public Result<User> updatePhoneConfirmed(long id, boolean status) {
+
+        if (uspUpdatePhoneConfirmed == null) {
+            throw new IllegalStateException("uspUpdatePhoneConfirmed cannot be null");
+        }
+
+        SqlParameterSource in = new MapSqlParameterSource()
+                .addValue("id",id)
+                .addValue("status",status);
+        Map<String,Object> m = uspUpdatePhoneConfirmed.execute(in);
 
         int resultCode = m.containsKey(RETURN_VALUE) ? (Integer) m.get(RETURN_VALUE) : 0;
         return new Result<>(resultCode);
@@ -296,14 +330,31 @@ public class UserDao extends AbstractBaseDao<User> implements IUserDao<User> {
 
     @Transactional
     @Override
-    public Result<User> updateTwoFactor(String email, boolean enabled) {
+    public Result<User> updateEmailConfirmed(long id, boolean status) {
+
+        if (uspUpdateEmailConfirmed == null) {
+            throw new IllegalStateException("uspUpdateEmailConfirmed cannot be null");
+        }
+
+        SqlParameterSource in = new MapSqlParameterSource()
+                .addValue("id",id)
+                .addValue("status",status);
+        Map<String,Object> m = uspUpdateEmailConfirmed.execute(in);
+
+        int resultCode = m.containsKey(RETURN_VALUE) ? (Integer) m.get(RETURN_VALUE) : 0;
+        return new Result<>(resultCode);
+    }
+
+    @Transactional
+    @Override
+    public Result<User> updateTwoFactor(long id, boolean enabled) {
 
         if (uspUpdateTwoFactor == null) {
             throw new IllegalStateException("uspUpdateTwoFactor cannot be null");
         }
 
         SqlParameterSource in = new MapSqlParameterSource()
-                .addValue("email",email)
+                .addValue("id",id)
                 .addValue("enabled",enabled);
         Map<String, Object> m = uspUpdateTwoFactor.execute(in);
 
@@ -313,14 +364,14 @@ public class UserDao extends AbstractBaseDao<User> implements IUserDao<User> {
 
     @Transactional
     @Override
-    public Result<User> updatePasswordResetProtection(String email, boolean enabled) {
+    public Result<User> updatePasswordResetProtection(long id, boolean enabled) {
 
         if (uspUpdatePasswordResetProtection == null) {
             throw new IllegalStateException("uspUpdateTwoFactor cannot be null");
         }
 
         SqlParameterSource in = new MapSqlParameterSource()
-                .addValue("email",email)
+                .addValue("id",id)
                 .addValue("enabled",enabled);
         Map<String, Object> m = uspUpdatePasswordResetProtection.execute(in);
 
@@ -330,14 +381,14 @@ public class UserDao extends AbstractBaseDao<User> implements IUserDao<User> {
 
     @Transactional
     @Override
-    public Result<User> updateNationality(String email, String country) {
+    public Result<User> updateNationality(long id, String country) {
 
         if (uspUpdateNationality == null) {
             throw new IllegalStateException("uspUpdateTwoFactor cannot be null");
         }
 
         SqlParameterSource in = new MapSqlParameterSource()
-                .addValue("email",email)
+                .addValue("id",id)
                 .addValue("country",country);
         Map<String, Object> m = uspUpdateNationality.execute(in);
 
@@ -347,14 +398,15 @@ public class UserDao extends AbstractBaseDao<User> implements IUserDao<User> {
 
     @Transactional
     @Override
-    public Result<User> updateActivationStatus(String email, boolean activated) {
+    public Result<User> updateActivationStatus(long id, boolean status, Date dateDeleted) {
         if (uspUpdateActivationStatus == null) {
-            throw new IllegalStateException("uspUpdateTwoFactor cannot be null");
+            throw new IllegalStateException("uspUpdateActivationStatusFactor cannot be null");
         }
 
         SqlParameterSource in = new MapSqlParameterSource()
-                .addValue("email",email)
-                .addValue("activated",activated);
+                .addValue("id",id)
+                .addValue("activated",status)
+                .addValue("dateDeleted",dateDeleted);
         Map<String, Object> m = uspUpdateActivationStatus.execute(in);
 
         int resultCode = m.containsKey(RETURN_VALUE) ? (Integer) m.get(RETURN_VALUE) : 0;
@@ -369,14 +421,24 @@ public class UserDao extends AbstractBaseDao<User> implements IUserDao<User> {
 
     @Transactional
     @Override
-    public Result<User> updatePassword(String email, String password) {
-        return super.updateByUniqueKey(email,password);
+    public Result<User> updatePassword(long id, String password) {
+
+        if (uspUpdatePassword == null) {
+            throw new IllegalStateException("uspUpdatePassword cannot be null");
+        }
+
+        SqlParameterSource in = new MapSqlParameterSource()
+                .addValue("is",id)
+                .addValue("password",password);
+        Map<String,Object> m = uspUpdatePassword.execute(in);
+
+        int resultCode = m.containsKey(RETURN_VALUE) ? (Integer) m.get(RETURN_VALUE) : 0;
+        return new Result<>(resultCode);
     }
 
     @Transactional
-    @Override
-    public Result<User> delete(String email) {
-        return super.deleteByUniqueKey(email);
+    public Result<User> delete(long id) {
+        return super.deleteByUniqueId(id);
     }
 
     @Transactional
@@ -548,7 +610,6 @@ public class UserDao extends AbstractBaseDao<User> implements IUserDao<User> {
         return new Result(resultCode,list, !list.isEmpty() ? (long) list.size() : 0L,pageNumber,pageSize);
     }
 
-
     @Transactional
     public Result<User> unsuspendUser(long userId) {
         if (uspUnsuspendUser == null) {
@@ -571,7 +632,8 @@ public class UserDao extends AbstractBaseDao<User> implements IUserDao<User> {
 
         SqlParameterSource in = new MapSqlParameterSource()
                 .addValue("pageNumber", pageNumber)
-                .addValue("pageSize",pageSize);
+                .addValue("pageSize",pageSize)
+                .addValue("no_of_records",null);
         Map<String,Object> m = uspRetrieveAllLockedUsers.execute(in);
 
         List<User> list = m.containsKey(LIST) ? (List<User>) m.get(LIST) : null;

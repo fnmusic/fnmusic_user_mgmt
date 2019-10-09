@@ -16,21 +16,25 @@ public interface IUserDao<T> {
 
     Result<T> retrieveByUsername(String username);
 
-    Result<T> updateUsername(String email, String username);
+    Result<T> updateUsername(long id, String username);
 
-    Result<T> updatePhone(String email, String phone);
+    Result<T> updatePhone(long id, String phone);
+
+    Result<T> updatePhoneConfirmed(long id, boolean status);
 
     Result<T> updateEmail(long id, String email);
 
-    Result<T> updatePassword(String email, String password);
+    Result<T> updateEmailConfirmed(long id, boolean status);
 
-    Result<T> updateTwoFactor(String email, boolean status);
+    Result<T> updatePassword(long id, String password);
 
-    Result<T> updatePasswordResetProtection(String email, boolean status);
+    Result<T> updateTwoFactor(long id, boolean status);
 
-    Result<T> updateNationality(String email, String country);
+    Result<T> updatePasswordResetProtection(long id, boolean status);
 
-    Result<T> updateActivationStatus(String email, boolean status);
+    Result<T> updateNationality(long id, String country);
+
+    Result<T> updateActivationStatus(long id, boolean status, Date dateDeleted);
 
     Result<T> update(T object);
 
@@ -52,6 +56,6 @@ public interface IUserDao<T> {
 
     Result<T> unsuspendUser(long userId);
 
-    Result<T> delete(String email);
+    Result<T> delete(long id);
 
 }
