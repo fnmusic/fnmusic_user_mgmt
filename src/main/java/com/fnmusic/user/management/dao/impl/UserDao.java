@@ -428,7 +428,7 @@ public class UserDao extends AbstractBaseDao<User> implements IUserDao<User> {
         }
 
         SqlParameterSource in = new MapSqlParameterSource()
-                .addValue("is",id)
+                .addValue("id",id)
                 .addValue("password",password);
         Map<String,Object> m = uspUpdatePassword.execute(in);
 
