@@ -20,11 +20,11 @@
 	</properties>
 
 	<dependencies>
-		<dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
-			<version>2.1.2.RELEASE</version>
-		</dependency>
+<!--		<dependency>-->
+<!--			<groupId>org.springframework.cloud</groupId>-->
+<!--			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>-->
+<!--			<version>2.1.2.RELEASE</version>-->
+<!--		</dependency>-->
 		<dependency>
 			<groupId>com.fnmusic</groupId>
 			<artifactId>fnmusic-base</artifactId>
@@ -127,6 +127,7 @@
 			</resource>
 			<resource>
 				<directory>src/main/config</directory>
+				<filtering>false</filtering>
 			</resource>
 		</resources>
 		<plugins>
@@ -149,5 +150,26 @@
 			<url>https://repo.spring.io/milestone</url>
 		</repository>
 	</repositories>
+
+<!--	<profiles>-->
+<!--		<profile>-->
+<!--			<id>dev</id>-->
+<!--			<properties>-->
+<!--				<spring.profiles.active>dev</spring.profiles.active>-->
+<!--			</properties>-->
+<!--		</profile>-->
+<!--		<profile>-->
+<!--			<id>uat</id>-->
+<!--			<properties>-->
+<!--				<spring.profiles.active>uat</spring.profiles.active>-->
+<!--			</properties>-->
+<!--		</profile>-->
+<!--		<profile>-->
+<!--			<id>prod</id>-->
+<!--			<properties>-->
+<!--				<spring.profiles.active>prod</spring.profiles.active>-->
+<!--			</properties>-->
+<!--		</profile>-->
+<!--	</profiles>-->
 
 </project>

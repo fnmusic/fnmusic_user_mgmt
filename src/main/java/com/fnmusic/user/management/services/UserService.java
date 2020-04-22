@@ -38,15 +38,13 @@ public class UserService {
     private FeatureService featureService;
     @Autowired
     private HashService hashService;
-    @Value("${app.redisTtl}")
-    private long redisTtl;
 
     private static Object userCache;
     private static Logger logger = LoggerFactory.getLogger(UserService.class);
 
     @PostConstruct
     public void init() {
-        this.userCache = cacheRepository.createCache(ConstantUtils.APPNAME,"userCache",1L);
+        this.userCache = cacheRepository.createCache(ConstantUtils.APPNAME,"userCache",Long.MAX_VALUE);
         createSuperAdmin();
         clearFromRedisCache();
     }
@@ -59,8 +57,7 @@ public class UserService {
                 User superAdmin = new User();
                 superAdmin.setEmail("superadmin@fnmusic.com");
                 superAdmin.setUsername("superadmin");
-                superAdmin.setFirstName("Super");
-                superAdmin.setLastName("Admin");
+                superAdmin.setName("Super Admin");
                 superAdmin.setPasswordHash(hashService.encode("password123"));
                 superAdmin.setRole(Role.SUPER_ADMIN);
                 superAdmin.setDateCreated(new Date());
@@ -98,6 +95,10 @@ public class UserService {
             Feature feature = featureResult.getData();
 
             String accessToken = RandomGeneratorUtils.generateCode(CharacterType.ALPHABETIC,120).toLowerCase();
+
+            //Still to be Implemented
+            String refreshToken = RandomGeneratorUtils.generateCode(CharacterType.ALPHANUMERIC,200).toLowerCase();
+
             UserPrincipal userPrincipal = new UserPrincipal(user,feature.getPermissions());
             setAuthentication(accessToken,userPrincipal);
 
@@ -185,9 +186,27 @@ public class UserService {
             }
             return data;
         } catch (Exception ex) {
-         logger.error(ex.getMessage());
+            logger.error(ex.getMessage());
         }
 
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    public Result<User> retrieveUserByPhone(String phone) {
+        try {
+            String key = "user_findUserByPhone_phone_"+phone+"";
+            Result<User> data = (Result<User>) this.cacheRepository.get(userCache,key);
+            if (data == null ) {
+                data = userDao.retrieveByPhone(phone);
+                if (data.getData() != null) {
+                    this.cacheRepository.put(userCache,key,data);
+                }
+            }
+            return data;
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
         return null;
     }
 
@@ -211,10 +230,10 @@ public class UserService {
         return null;
     }
 
-    public Result<User> follow(long userId, long fanId) {
+    public Result<User> follow(long userId, long followerId) {
 
         try {
-            return userDao.follow(userId,fanId);
+            return userDao.follow(userId,followerId);
         } catch (Exception ex) {
             logger.error(ex.getMessage());
         } finally {
@@ -224,10 +243,10 @@ public class UserService {
         return null;
     }
 
-    public void unfollow(long userId, long fanId) {
+    public void unfollow(long userId, long followerId) {
 
         try {
-            userDao.unfollow(userId,fanId);
+            userDao.unfollow(userId,followerId);
             clearFromRedisCache();
         } catch (Exception ex) {
             logger.error(ex.getMessage());
@@ -235,13 +254,13 @@ public class UserService {
     }
 
     @SuppressWarnings("unchecked")
-    public Result<User> getFollowers(long id, int pageNumber, int pageSize) {
+    public Result<User> getFollowers(long userId, int pageNumber, int pageSize) {
 
         try {
-            String key = "user_getFollowers_id_"+id+"";
+            String key = "user_getFollowers_userId_"+userId+"";
             Result<User> data = (Result<User>) cacheRepository.get(userCache,key);
             if (data == null) {
-                data = userDao.getFollowers(id,pageNumber,pageSize);
+                data = userDao.getFollowers(userId,pageNumber,pageSize);
                 if (data.getList() != null) {
                     cacheRepository.put(userCache,key,data);
                 }
@@ -256,13 +275,13 @@ public class UserService {
     }
 
     @SuppressWarnings("unchecked")
-    public Result<User> getFollowing(long id, int pageNumber, int pageSize) {
+    public Result<User> getFollowing(long userId, int pageNumber, int pageSize) {
 
         try {
-            String key = "user_getFollowing_id_"+id+"";
+            String key = "user_getFollowing_userId_"+userId+"";
             Result<User> data = (Result<User>) cacheRepository.get(userCache,key);
             if (data == null) {
-                data = userDao.getFollowing(id,pageNumber,pageSize);
+                data = userDao.getFollowing(userId,pageNumber,pageSize);
                 if (data.getList() != null) {
                     cacheRepository.put(userCache,key,data);
                 }
@@ -277,13 +296,13 @@ public class UserService {
     }
 
     @SuppressWarnings("unchecked")
-    public Result<User> isFollower(long userId, long fanId) {
+    public Result<User> isFollower(long userId, long followerId) {
 
         try {
-            String key = "user_isFollower_userId_"+userId+"_fanId_"+fanId+"";
+            String key = "user_isFollower_userId_"+userId+"_followerId_"+followerId+"";
             Result<User> data = (Result<User>) cacheRepository.get(userCache,key);
             if (data == null) {
-               data = userDao.isFollower(userId,fanId);
+               data = userDao.isFollower(userId,followerId);
                if (data.getData() != null) {
                    cacheRepository.put(userCache,key,data);
                }
@@ -298,12 +317,12 @@ public class UserService {
     }
 
     @SuppressWarnings("unchecked")
-    public Result<User> isFollowing(long userId, long fanId) {
+    public Result<User> isFollowing(long userId, long followerId) {
         try {
-            String key = "user_isFollowing_userId_"+userId+"_fanId_"+fanId+"";
+            String key = "user_isFollowing_userId_"+userId+"_followerId_"+followerId+"";
             Result<User> data = (Result<User>) cacheRepository.get(userCache,key);
             if (data == null) {
-                data = userDao.isFollowing(userId,fanId);
+                data = userDao.isFollowing(userId,followerId);
                 if (data.getData() != null) {
                     cacheRepository.put(userCache,key,data);
                 }
@@ -316,9 +335,9 @@ public class UserService {
         return null;
     }
 
-    public void updateUsername(long id, String username) {
+    public void updateUsername(long userId, String username) {
         try {
-            userDao.updateUsername(id,username);
+            userDao.updateUsername(userId,username);
             updateAuthentication();
             clearFromRedisCache();
         } catch (Exception ex) {
@@ -326,9 +345,9 @@ public class UserService {
         }
     }
 
-    public void updatePhone(long id, String phone) {
+    public void updatePhone(long userId, String phone) {
         try {
-            userDao.updatePhone(id,phone);
+            userDao.updatePhone(userId,phone);
             updateAuthentication();
             clearFromRedisCache();
         } catch (Exception ex) {
@@ -336,9 +355,9 @@ public class UserService {
         }
     }
 
-    public void updatePhoneConfirmed(long id, boolean status) {
+    public void updatePhoneConfirmed(long userId, boolean status) {
         try {
-            userDao.updatePhoneConfirmed(id,status);
+            userDao.updatePhoneConfirmed(userId,status);
             updateAuthentication();
             clearFromRedisCache();
         } catch (Exception e) {
@@ -346,9 +365,9 @@ public class UserService {
         }
     }
 
-    public void updateEmail(long id, String email) {
+    public void updateEmail(long userId, String email) {
         try {
-            userDao.updateEmail(id,email);
+            userDao.updateEmail(userId,email);
             updateAuthentication();
             clearFromRedisCache();
         } catch (Exception ex) {
@@ -356,9 +375,9 @@ public class UserService {
         }
     }
 
-    public void updateEmailConfirmed(long id, boolean status) {
+    public void updateEmailConfirmed(long userId, boolean status) {
         try {
-            userDao.updateEmailConfirmed(id,status);
+            userDao.updateEmailConfirmed(userId,status);
             updateAuthentication();
             clearFromRedisCache();
         } catch (Exception e) {
@@ -366,9 +385,9 @@ public class UserService {
         }
     }
 
-    public void updateNationality(long id, String country) {
+    public void updateNationality(long userId, String country) {
         try {
-            userDao.updateNationality(id,country);
+            userDao.updateNationality(userId,country);
             updateAuthentication();
             clearFromRedisCache();
         } catch (Exception e) {
@@ -376,9 +395,9 @@ public class UserService {
         }
     }
 
-    public void updateTwoFactor(long id, boolean status) {
+    public void updateTwoFactor(long userId, boolean status) {
         try {
-            userDao.updateTwoFactor(id,status);
+            userDao.updateTwoFactor(userId,status);
             updateAuthentication();
             clearFromRedisCache();
         } catch (Exception e) {
@@ -386,9 +405,9 @@ public class UserService {
         }
     }
 
-    public void updatePasswordResetProtection(long id, boolean status) {
+    public void updatePasswordResetProtection(long userId, boolean status) {
         try {
-            userDao.updatePasswordResetProtection(id,status);
+            userDao.updatePasswordResetProtection(userId,status);
             updateAuthentication();
             clearFromRedisCache();
         } catch (Exception e) {
@@ -396,9 +415,9 @@ public class UserService {
         }
     }
 
-    public void updateActivationStatus(long id, boolean status, Date dateDeleted) {
+    public void updateActivationStatus(long userId, boolean status, Date dateDeleted) {
         try {
-            userDao.updateActivationStatus(id,status,dateDeleted);
+            userDao.updateActivationStatus(userId,status,dateDeleted);
             updateAuthentication();
             clearFromRedisCache();
         } catch (Exception e) {
@@ -418,13 +437,13 @@ public class UserService {
     }
 
     @SuppressWarnings("unchecked")
-    public Result<User> getOldPasswords(long id) {
+    public Result<User> getOldPasswords(long userId) {
 
         try {
-            String key = "user_getOldPasswords_id_"+id+"";
+            String key = "user_getOldPasswords_id_"+userId+"";
             Result<User> data = (Result<User>) cacheRepository.get(userCache,key);
             if (data == null) {
-                data = userDao.retrieveOldPasswords(id);
+                data = userDao.retrieveOldPasswords(userId);
                 if (data != null) {
                     cacheRepository.put(userCache,key,data);
                 }
@@ -437,9 +456,9 @@ public class UserService {
         return null;
     }
 
-    public void updatePassword(long id, String password) {
+    public void updatePassword(long userId, String password) {
         try {
-            userDao.updatePassword(id,password);
+            userDao.updatePassword(userId,password);
             updateAuthentication();
             clearFromRedisCache();
         } catch (Exception ex) {
@@ -455,20 +474,20 @@ public class UserService {
         setAuthentication(accessToken,userPrincipal);
     }
 
-    private void delete(long id) {
+    private void delete(long userId) {
 
         try {
-            userDao.delete(id);
+            userDao.delete(userId);
             clearFromRedisCache();
         } catch (Exception ex) {
             logger.error(ex.getMessage());
         }
     }
 
-    public Result<User> suspendUser(long id, Date suspensionEndDate) {
+    public Result<User> suspendUser(long userId, Date suspensionEndDate) {
 
         try {
-            return userDao.suspendUser(id,suspensionEndDate);
+            return userDao.suspendUser(userId,suspensionEndDate);
         } catch (Exception e) {
             logger.error(e.getMessage());
         } finally {

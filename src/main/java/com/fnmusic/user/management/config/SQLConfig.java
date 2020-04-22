@@ -3,6 +3,7 @@ package com.fnmusic.user.management.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
@@ -10,6 +11,11 @@ import javax.sql.DataSource;
 
 @Configuration
 public class SQLConfig {
+
+    @Bean
+    public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
+        return new PropertySourcesPlaceholderConfigurer();
+    }
 
     @Value("${spring.datasource.driverclassname}")
     private String driverClassName;

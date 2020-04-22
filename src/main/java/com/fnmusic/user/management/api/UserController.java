@@ -27,6 +27,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * The User Controller, basically handles all operations that invlove the use of the USER Object
+ */
 @RestController
 @RequestMapping(value = "rest/v1/fn/music/user/management/user")
 public class UserController {
@@ -44,6 +47,11 @@ public class UserController {
     @Autowired
     NotificationPublisher notificationPublisher;
 
+    /**
+     * The method retrieves user information with the use of the user id
+     * @param id The id of the user
+     * @return Result<User> object containing the user data
+     */
     @GetMapping(value = "/findbyid/{Id}", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
     public Result<User> findById(@PathVariable("Id") long id) {
@@ -67,6 +75,11 @@ public class UserController {
         return userResult;
     }
 
+    /**
+     * The method retrieves user information with the use of an email
+     * @param email The email of the user
+     * @return Result<User> object containing the user data
+     */
     @GetMapping(value = "/findbyemail/{Email}", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
     public Result<User> findByEmail(@PathVariable("Email") @Email String email) {
@@ -90,6 +103,11 @@ public class UserController {
         return userResult;
     }
 
+    /**
+     * The method retrieves user information with the use of a username
+     * @param username The username of the user
+     * @return Result<User> object containing the user data
+     */
     @GetMapping(value = "/findbyusername/{Username}", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
     public Result<User> findByUsername(@PathVariable("Username") String username) {
@@ -113,10 +131,48 @@ public class UserController {
         return userResult;
     }
 
+    /**
+     * The method retrieves user information with the use of a phone
+     * @param phone The phone of the user
+     * @return Result<User> object containing the user data
+     */
+    @GetMapping(value = "/findbyphone/{Phone}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.OK)
+    public Result<User> findByPhone(@PathVariable("Phone") String phone) {
+        User currentUser = SystemUtils.isAuthenticated() ? SystemUtils.getCurrentUser() : null;
+        Result userResult = userService.retrieveUserByPhone(phone);
+
+        AuditLog auditLog = new AuditLog();
+        if (currentUser != null) {
+            auditLog.setUserId(currentUser.getId().toString());
+            auditLog.setAuditLogType(AuditLogType.USER);
+            auditLog.setRole(currentUser.getRole());
+        }
+        else {
+            auditLog.setAuditLogType(AuditLogType.SYSTEM);
+        }
+        auditLog.setEvent("RETRIEVE USER DATA BY USERNAME");
+        auditLog.setDescription("User data was retrieved using valid username");
+        auditLog.setAuditLogObject(userResult);
+        auditLogPublisher.publish(auditLog);
+
+        return userResult;
+    }
+
+    /**
+     * This method updates the user profile data
+     * @param jsonObject A json object representing user data to be updated
+     * @param profilePhoto Profile Photo file of the user
+     * @param coverPhoto Cover Photo file of the user
+     * @throws IOException
+     */
     @PutMapping(value = "/update", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     @ResponseStatus(HttpStatus.OK)
     //@PreAuthorize("hasAuthority('UPDATE_USER_DATA')")
-    public void updateUser(@RequestPart("Request") String jsonObject, @Nullable @RequestPart("ProfilePhoto") MultipartFile profilePhoto, @Nullable @RequestPart("CoverPhoto") MultipartFile coverPhoto) throws IOException {
+    public void updateUser(
+            @RequestPart("Request") String jsonObject,
+            @Nullable @RequestPart("ProfilePhoto") MultipartFile profilePhoto,
+            @Nullable @RequestPart("CoverPhoto") MultipartFile coverPhoto) throws IOException {
 
         User user = new JsonMarshaller<User>().unmarshall(jsonObject,User.class);
         if (user == null) {
@@ -124,10 +180,6 @@ public class UserController {
         }
 
         User currentUser = SystemUtils.getCurrentUser();
-        if (!user.getEmail().equalsIgnoreCase(currentUser.getEmail())) {
-            throw new BadRequestException("Invalid Request");
-        }
-
         if (user.getUsername().isEmpty() || user.getUsername() == null) {
             throw new BadRequestException("Invalid Request");
         }
@@ -154,13 +206,18 @@ public class UserController {
         auditLogPublisher.publish(auditLog);
     }
 
+    /**
+     * This method enables a user to follow a user account
+     * @param userId The id of the user account to follow
+     * @param followerId The id of the user account requesting to follow
+     */
     @PostMapping("/follow")
     @ResponseStatus(HttpStatus.OK)
     //@PreAuthorize("hasAuthority('FOLLOW_USER')")
-    public void follow(@RequestHeader("UserId") long userId, @RequestHeader("FanId") long fanId) {
+    public void followUser(@RequestHeader("UserId") long userId, @RequestHeader("FollowerId") long followerId) {
 
         User currentUser = SystemUtils.getCurrentUser();
-        if (fanId != currentUser.getId()) {
+        if (followerId != currentUser.getId()) {
             throw new BadRequestException("Invalid Request");
         }
 
@@ -169,16 +226,16 @@ public class UserController {
             throw new BadRequestException("Invalid Request");
         }
 
-        Result<User> fanById = userService.retrieveUserById(fanId);
+        Result<User> fanById = userService.retrieveUserById(followerId);
         if (fanById.getData() == null) {
             throw new BadRequestException("Invalid Request");
         }
 
-        if (userId == fanId) {
+        if (userId == followerId) {
             throw new BadRequestException("Invalid Request");
         }
 
-        userService.follow(userId,fanId);
+        userService.follow(userId,followerId);
 
         List<User> followers = new ArrayList<>();
         followers.add(currentUser);
@@ -199,13 +256,18 @@ public class UserController {
         auditLogPublisher.publish(auditLog);
     }
 
+    /**
+     *
+     * @param userId
+     * @param followerId
+     */
     @PostMapping("/unfollow")
     @ResponseStatus(HttpStatus.OK)
     //@PreAuthorize("hasAuthority('FOLLOW_USER')")
-    public void unfollow(@RequestHeader("UserId") long userId, @RequestHeader("FanId") long fanId) {
+    public void unfollowUser(@RequestHeader("UserId") long userId, @RequestHeader("FollowerId") long followerId) {
 
         User user = SystemUtils.getCurrentUser();
-        if (fanId != user.getId()) {
+        if (followerId != user.getId()) {
             throw new BadRequestException("Invalid Request");
         }
 
@@ -214,12 +276,12 @@ public class UserController {
             throw new BadRequestException("Invalid Request");
         }
 
-        Result<User> fanById = userService.retrieveUserById(fanId);
+        Result<User> fanById = userService.retrieveUserById(followerId);
         if (fanById.getData() == null) {
             throw new BadRequestException("Invalid Request");
         }
 
-        userService.unfollow(userId,fanId);
+        userService.unfollow(userId,followerId);
 
         AuditLog auditLog = new AuditLog();
         auditLog.setUserId(fanById.getData().getId().toString());
@@ -230,21 +292,28 @@ public class UserController {
         auditLogPublisher.publish(auditLog);
     }
 
+    /**
+     *
+     * @param userId
+     * @param pageNumber
+     * @param pageSize
+     * @return
+     */
     @GetMapping("/followers")
     @ResponseStatus(HttpStatus.OK)
     //@PreAuthorize("hasAuthority('READ_FAN_DATA')")
-    public Result<User> getFollowers(@RequestHeader("UserId") long id, @RequestHeader("PageNumber") int pageNumber, @RequestHeader("PageSize") int pageSize) {
+    public Result<User> getFollowers(@RequestHeader("UserId") long userId, @RequestHeader("PageNumber") int pageNumber, @RequestHeader("PageSize") int pageSize) {
         User currentUser = SystemUtils.getCurrentUser();
-        if (id != currentUser.getId()) {
+        if (userId != currentUser.getId()) {
             throw new BadRequestException("Invalid Request");
         }
 
-        Result<User> byId = userService.retrieveUserById(id);
+        Result<User> byId = userService.retrieveUserById(userId);
         if (byId.getData() == null) {
             throw new BadRequestException("Invalid Request");
         }
 
-        Result<User> followers = userService.getFollowers(id, pageNumber, pageSize);
+        Result<User> followers = userService.getFollowers(userId, pageNumber, pageSize);
 
         AuditLog auditLog = new AuditLog();
         auditLog.setUserId(currentUser.getId().toString());
@@ -257,20 +326,30 @@ public class UserController {
         return followers;
     }
 
+    /**
+     *
+     * @param userId
+     * @param pageNumber
+     * @param pageSize
+     * @return
+     */
     @GetMapping( value = "/following", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
     //@PreAuthorize("hasAuthority('READ_FAN_DATA')")
-    public Result<User> getFollowing(@RequestHeader("UserId") long id, @RequestHeader("PageNumber") int pageNumber, @RequestHeader("PageSize") int pageSize) {
+    public Result<User> getFollowing(@RequestHeader("UserId") long userId, @RequestHeader("PageNumber") int pageNumber, @RequestHeader("PageSize") int pageSize) {
         User currentUser = SystemUtils.getCurrentUser();
-        Result<User> following = userService.getFollowing(id, pageNumber, pageSize);
+        if (userId != currentUser.getId()) {
+            throw new BadRequestException("Invalid Request");
+        }
 
-        AuditLog auditLog = new AuditLog();
-
-        Result<User> byId = userService.retrieveUserById(id);
+        Result<User> byId = userService.retrieveUserById(userId);
         if (byId.getData() == null) {
             throw new BadRequestException("Invalid Request");
         }
 
+        Result<User> following = userService.getFollowing(userId, pageNumber, pageSize);
+
+        AuditLog auditLog = new AuditLog();
         auditLog.setUserId(currentUser.getId().toString());
         auditLog.setAuditLogType(AuditLogType.USER);
         auditLog.setEvent("RETRIEVE FOLLOWING");
@@ -282,12 +361,18 @@ public class UserController {
         return following;
     }
 
+    /**
+     * To check if the profile account is a follower of the current user account
+     * @param userId The Id of the current user account
+     * @param followerId The Id of the profile user account
+     * @return
+     */
     @GetMapping( value = "/isfollower", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
     //@PreAuthorize("hasAuthority('READ_FAN_DATA')")
-    public Result<User> isFollower(@RequestHeader("UserId") long userId, @RequestHeader("FanId") long fanId) {
+    public Result<User> isFollower(@RequestHeader("UserId") long userId, @RequestHeader("FollowerId") long followerId) {
         User currentUser = SystemUtils.getCurrentUser();
-        if (fanId != currentUser.getId()) {
+        if (userId != currentUser.getId()) {
             throw new BadRequestException("Invalid Request");
         }
 
@@ -295,8 +380,13 @@ public class UserController {
             throw new BadRequestException("Invalid Request");
         }
 
-        Result<User> byId = userService.retrieveUserById(userId);
-        if (byId.getData() == null) {
+        Result<User> byFanId = userService.retrieveUserById(followerId);
+        if (byFanId.getData() == null) {
+            throw new BadRequestException("Invalid Request");
+        }
+
+        Result<User> isfollowerResult = userService.isFollower(userId,followerId);
+        if (!isfollowerResult.getData().getId().equals(followerId)) {
             throw new BadRequestException("Invalid Request");
         }
 
@@ -304,40 +394,51 @@ public class UserController {
         auditLog.setUserId(currentUser.getId().toString());
         auditLog.setAuditLogType(AuditLogType.USER);
         auditLog.setEvent("FOLLOWER CHECK");
-        auditLog.setDescription(currentUser.getEmail() + " requested to check if " + byId.getData().getEmail() + " is a follower");
+        auditLog.setDescription(currentUser.getEmail() + " requested to check if " + byFanId.getData().getEmail() + " is a follower");
         auditLog.setRole(currentUser.getRole());
-        auditLog.setAuditLogObject(byId);
+        auditLog.setAuditLogObject(isfollowerResult);
         auditLogPublisher.publish(auditLog);
 
-        return byId;
+        return isfollowerResult;
     }
 
+    /**
+     * To check if the current user account is a follower of the profile account
+     * @param userId The id of the profile user account
+     * @param followerId The id of the current user
+     * @return the profile account data
+     */
     @GetMapping(value = "/isfollowing", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
     //@PreAuthorize("hasAuthority('READ_FAN_DATA')")
-    public Result<User> isFollowing(@RequestHeader("UserId") long userId, @RequestHeader("FanId") long fanId) {
+    public Result<User> isFollowing(@RequestHeader("UserId") long userId, @RequestHeader("FollowerId") long followerId) {
         User currentUser = SystemUtils.getCurrentUser();
-        if (fanId != currentUser.getId()) {
+        if (followerId != currentUser.getId()) {
             throw new BadRequestException("Invalid Request");
         }
 
-        Result<User> byId = userService.retrieveUserById(userId);
-        if (byId.getData() == null) {
+        Result<User> byUserId = userService.retrieveUserById(userId);
+        if (byUserId.getData() == null) {
             throw new BadRequestException("Invalid Request");
         }
+
+        Result<User> isfollowingResult = userService.isFollowing(userId,followerId);
 
         AuditLog auditLog = new AuditLog();
         auditLog.setUserId(currentUser.getId().toString());
         auditLog.setAuditLogType(AuditLogType.USER);
         auditLog.setEvent("FOLLOWING CHECK");
-        auditLog.setDescription(currentUser.getEmail() + " requested to check if they are following " + byId.getData().getEmail());
+        auditLog.setDescription(currentUser.getEmail() + " requested to check if they are following " + byUserId.getData().getEmail());
         auditLog.setRole(currentUser.getRole());
-        auditLog.setAuditLogObject(byId);
+        auditLog.setAuditLogObject(isfollowingResult);
         auditLogPublisher.publish(auditLog);
 
-        return userService.isFollowing(userId,fanId);
+        return isfollowingResult;
     }
 
+    /**
+     *
+     */
     @PostMapping(value = "/logout", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
     public void logout() {

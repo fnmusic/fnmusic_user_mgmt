@@ -21,4 +21,6 @@ public class SessionController {
     public String ping() {
         return "status Up";
     }
+
+
 }

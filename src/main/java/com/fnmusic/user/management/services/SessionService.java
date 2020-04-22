@@ -33,8 +33,6 @@ public class SessionService {
 
     }
 
-
-
     public void clearFromRedisCache() {
         cacheRepository.clear(sessionCache,"session_*");
     }

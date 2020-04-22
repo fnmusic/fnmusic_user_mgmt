@@ -13,6 +13,7 @@ import com.fnmusic.user.management.messaging.AuditLogPublisher;
 import com.fnmusic.user.management.messaging.MailPublisher;
 import com.fnmusic.user.management.messaging.SMSPublisher;
 import com.fnmusic.user.management.models.Auth;
+import com.fnmusic.user.management.models.AuthKey;
 import com.fnmusic.user.management.models.Signup;
 import com.fnmusic.user.management.services.AuthService;
 import com.fnmusic.user.management.services.HashService;
@@ -23,7 +24,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.constraints.Email;
@@ -55,19 +55,48 @@ public class AuthController {
 
     private static Logger logger = LoggerFactory.getLogger(AuthController.class);
 
+    /**
+     * This method creates a new user account via email or phone
+     * @param signup The signup object gotten from the request body of the http request
+     * @return A Service Response Object stating the status of the request
+     * @throws NoSuchAlgorithmException
+     */
     @PostMapping(value = "/signup", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    public ServiceResponse signup(@RequestBody @Validated Signup signup) throws NoSuchAlgorithmException {
+    public ServiceResponse signup(@RequestBody Signup signup) throws NoSuchAlgorithmException {
 
-        Result<User> byEmail = userService.retrieveUserByEmail(signup.getEmail());
-        if (byEmail != null) {
-            if (byEmail.getData() != null) {
-                if (signup.getEmail().equalsIgnoreCase(byEmail.getData().getEmail())) {
-                    throw new BadRequestException("Email already exists");
-                }
-            }
+        //if phone or email is missing, then the request is invalid
+        if (signup.getPhone() == null && signup.getEmail() == null) {
+            throw new BadRequestException("Email or Phone must be present");
         }
 
+        switch (signup.getAuthKey()) {
+            case Email:
+                //verify if email already exists
+                Result<User> byEmail = userService.retrieveUserByEmail(signup.getEmail());
+                if (byEmail != null) {
+                    if (byEmail.getData() != null) {
+                        if (signup.getEmail().equalsIgnoreCase(byEmail.getData().getEmail())) {
+                            throw new BadRequestException("Email already exists");
+                        }
+                    }
+                }
+                break;
+
+            case Phone:
+                //verify if phone already exists
+                Result<User> byPhone = userService.retrieveUserByPhone(signup.getPhone());
+                if (byPhone != null) {
+                    if (byPhone.getData() != null) {
+                        if (signup.getPhone().equalsIgnoreCase(byPhone.getData().getPhone())) {
+                            throw new BadRequestException("Phone already exists");
+                        }
+                    }
+                }
+                break;
+        }
+
+        //verify if username already exists
         Result<User> byUsername = userService.retrieveUserByUsername(signup.getUsername());
         if (byUsername != null) {
             if (byUsername.getData() != null) {
@@ -79,16 +108,17 @@ public class AuthController {
 
         User user = new User();
         user.setUsername(signup.getUsername());
-        user.setFirstName((signup.getFirstname() != null) ? signup.getUsername() : "");
-        user.setLastName((signup.getLastname() != null) ? signup.getLastname() : "");
         user.setEmail(signup.getEmail());
+        user.setPhone(signup.getPhone());
         user.setPasswordHash(hashService.encode(signup.getPassword()));
         user.setRole(Role.USER);
         user.setDateCreated(signup.getDateCreated() != null ? signup.getDateCreated() : new Date());
+
         Result<User> result = userService.create(user);
         if (result.getIdentityValue() <= 0L) {
             throw new InternalServerErrorException("Something went wrong, sorry we couldn't create your account at this time");
         }
+
         user.setId(result.getIdentityValue());
 
         AuditLog auditLog = new AuditLog();
@@ -108,22 +138,43 @@ public class AuthController {
 
     @PostMapping(value = "/signin", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
-    public AccessTokenWithUserDetails signin(@RequestHeader("X-AUTH-UID") String uid, @RequestHeader("X-AUTH-PASSWORD") String password ) throws NoSuchAlgorithmException {
+    public AccessTokenWithUserDetails signin(
+            @RequestHeader("X-AUTH-UID") String uid,
+            @RequestHeader("X-AUTH-PASSWORD") String password,
+            @RequestHeader("X-AUTH-KEY") AuthKey authKey) throws NoSuchAlgorithmException {
 
-        Result<User> result = userService.retrieveUserByEmail(uid);
+        Result<User> result = null;
+        switch (authKey) {
+            case Email:
+                result = userService.retrieveUserByEmail(uid);
+                break;
+            case Phone:
+                result = userService.retrieveUserByPhone(uid);
+                break;
+            case Username:
+                result = userService.retrieveUserByUsername(uid);
+                break;
+        }
+
         User user = result.getData();
         if (user == null) {
-            result = userService.retrieveUserByUsername(uid);
-            user = result.getData();
-            if (user == null) {
-                throw new BadRequestException("user does not exist");
+            throw new BadRequestException("User not found");
+        }
+        
+        //if account is locked and lockoutEndDate is not yet reached, login fails
+        if (user.isLockOutEnabled()) {
+            Date currentDate = new Date();
+            if (!currentDate.after(user.getLockOutEndDateUtc())) {
+                throw new BadRequestException("your account is locked");
             }
         }
 
-        if (user.isLockOutEnabled()) {
-            throw new BadRequestException("your account is locked");
+        //if account is suspended, then login fails
+        if (user.isSuspended()) {
+            throw new BadRequestException("your account has been suspended");
         }
 
+        //if password is incorrect, failed login attempts value increments by 1
         String loginPasswordHash = hashService.encode(password);
         if (!loginPasswordHash.equalsIgnoreCase(user.getPasswordHash())) {
             userService.increaseLoginAttempt(user.getEmail());

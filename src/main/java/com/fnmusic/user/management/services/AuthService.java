@@ -28,7 +28,7 @@ public class AuthService {
     @Autowired
     private CacheRepository cacheRepository;
     @Value("${app.redisTtl}")
-    private long redisTtl;
+    private Long redisTtl;
 
     private static Object authCache;
     private static Logger logger = LoggerFactory.getLogger(AuthService.class);
